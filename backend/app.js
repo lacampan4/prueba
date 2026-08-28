@@ -1,9 +1,4 @@
 ```javascript
-// ============================================================
-// app.js
-// Backend Express - SAP XSODATA + PostgreSQL + Dashboards
-// ============================================================
-
 require('dotenv').config();
 
 const express = require('express');
@@ -16,21 +11,10 @@ const app = express();
 
 
 // ============================================================
-// CONFIGURACIÓN EXPRESS
+// CONFIGURACION
 // ============================================================
-
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*'
-}));
-
-app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 3000;
-
-
-// ============================================================
-// CONFIGURACIÓN SAP
-// ============================================================
 
 const SAP_BASE_URL =
   process.env.SAP_BASE_URL ||
@@ -43,31 +27,29 @@ const SAP_PAGE_SIZE = parseInt(
 
 
 // ============================================================
-// MENSAJES DE INICIO
+// MIDDLEWARE
 // ============================================================
+
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || '*'
+}));
+
+app.use(express.json({
+  limit: '10mb'
+}));
+
 
 console.log('===========================================');
 console.log('BACKEND LA CAMPANA');
 console.log('===========================================');
 console.log('SAP:', SAP_BASE_URL);
 console.log('SAP PAGE SIZE:', SAP_PAGE_SIZE);
-console.log('SYNC SAP: ACTIVO');
 console.log('===========================================');
 
 
 // ============================================================
 // UTILIDADES
 // ============================================================
-
-// Convierte fechas SAP como:
-//
-// /Date(1786320000000)/
-//
-// a:
-//
-// 2026-08-09
-//
-// También acepta directamente YYYY-MM-DD.
 
 function parseSAPDate(value) {
 
@@ -105,10 +87,6 @@ function parseSAPDate(value) {
 }
 
 
-// ============================================================
-// CONVERTIR A NÚMERO
-// ============================================================
-
 function toNumber(value) {
 
   if (
@@ -128,7 +106,7 @@ function toNumber(value) {
 
 
 // ============================================================
-// INICIALIZAR BASE DE DATOS
+// BASE DE DATOS
 // ============================================================
 
 async function initDB() {
@@ -137,7 +115,6 @@ async function initDB() {
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS facturacion (
-
         id SERIAL PRIMARY KEY,
 
         sap_id VARCHAR(100) UNIQUE NOT NULL,
@@ -190,10 +167,6 @@ async function initDB() {
     `);
 
 
-    // ========================================================
-    // ÍNDICES
-    // ========================================================
-
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_facturacion_fecha
       ON facturacion(fecha_factura);
@@ -215,13 +188,13 @@ async function initDB() {
     `);
 
 
-    console.log('✓ DB initialized');
+    console.log('✓ Base de datos inicializada');
 
-  } catch (err) {
+  } catch (error) {
 
     console.error(
-      'Error initializing DB:',
-      err
+      'Error inicializando la base de datos:',
+      error.message
     );
 
   }
@@ -229,7 +202,7 @@ async function initDB() {
 
 
 // ============================================================
-// HEALTH CHECK
+// HEALTH
 // ============================================================
 
 app.get('/health', async (req, res) => {
@@ -239,29 +212,19 @@ app.get('/health', async (req, res) => {
     await pool.query('SELECT 1');
 
     res.json({
-
+      ok: true,
       estado: 'ok',
-
       baseDatos: 'conectada',
-
-      marca_de_tiempo:
-        new Date().toISOString()
-
+      fecha: new Date().toISOString()
     });
 
-  } catch (err) {
+  } catch (error) {
 
     res.status(500).json({
-
+      ok: false,
       estado: 'error',
-
       baseDatos: 'desconectada',
-
-      error: err.message,
-
-      marca_de_tiempo:
-        new Date().toISOString()
-
+      error: error.message
     });
 
   }
@@ -270,14 +233,37 @@ app.get('/health', async (req, res) => {
 
 
 // ============================================================
-// PRUEBA DE RUTA SYNC SAP
+// INICIO
 // ============================================================
 
-console.log('✓ Registrando ruta GET /sync-sap');
+app.get('/', (req, res) => {
+
+  res.json({
+
+    ok: true,
+
+    servicio: 'Backend La Campana',
+
+    mensaje: 'Servidor funcionando correctamente',
+
+    rutas: {
+      health: '/health',
+      syncSAP: '/sync-sap?inicio=YYYY-MM-DD&fin=YYYY-MM-DD',
+      facturacion: '/facturacion',
+      hojaAsesor: '/dashboards/hoja-asesor',
+      hojaCliente: '/dashboards/hoja-cliente',
+      laborComercial: '/dashboards/labor-comercial',
+      portafolioCartera: '/dashboards/portafolio-cartera',
+      planeacionNogales: '/dashboards/planeacion-nogales'
+    }
+
+  });
+
+});
 
 
 // ============================================================
-// CONSULTAR UNA PÁGINA DE SAP
+// CONSULTAR SAP
 // ============================================================
 
 async function consultarSAPPagina(
@@ -298,30 +284,20 @@ async function consultarSAPPagina(
       {
 
         params: {
-
           $filter: filter,
-
           $format: 'json',
-
           $top: top,
-
           $skip: skip
-
         },
 
         httpsAgent: new https.Agent({
-
           rejectUnauthorized: false
-
         }),
 
         timeout: 120000,
 
         headers: {
-
-          Accept:
-            'application/json'
-
+          Accept: 'application/json'
         }
 
       }
@@ -329,31 +305,31 @@ async function consultarSAPPagina(
 
     return response.data;
 
-  } catch (err) {
+  } catch (error) {
 
     const status =
-      err.response?.status || null;
+      error.response?.status || null;
 
     const detalle =
-      err.response?.data ||
-      err.message;
+      error.response?.data ||
+      error.message;
 
-    const error =
-      new Error(
-        `SAP respondió con error${status ? ` HTTP ${status}` : ''}`
-      );
+    const nuevoError = new Error(
+      `SAP respondió con error${status ? ` HTTP ${status}` : ''}`
+    );
 
-    error.status = status;
+    nuevoError.status = status;
+    nuevoError.detalle = detalle;
 
-    error.detalle = detalle;
+    throw nuevoError;
 
-    throw error;
   }
+
 }
 
 
 // ============================================================
-// MAPEAR REGISTRO SAP
+// MAPEAR SAP
 // ============================================================
 
 function mapSAPRecord(row) {
@@ -363,153 +339,92 @@ function mapSAPRecord(row) {
     sap_id:
       row.ID || null,
 
-
     cliente:
       row.Cliente || null,
-
 
     nit:
       row.Nit || null,
 
-
     ciudad:
       row.Ciudad || null,
-
 
     departamento:
       row.Departamento || null,
 
-
     ciiu:
       row.CIIU || null,
 
-
     numero_factura:
-
       row.Numero_Factura !== null &&
       row.Numero_Factura !== undefined
-
         ? String(row.Numero_Factura)
-
         : null,
 
-
     fecha_factura:
-      parseSAPDate(
-        row.Fecha_Factura
-      ),
-
+      parseSAPDate(row.Fecha_Factura),
 
     plazo:
       row.Plazo || null,
 
-
     cupo_credito:
-      toNumber(
-        row.Cupo_Credito
-      ),
-
+      toNumber(row.Cupo_Credito),
 
     cupo_usado:
-      toNumber(
-        row.Cupo_Usado
-      ),
-
+      toNumber(row.Cupo_Usado),
 
     asesor:
       row.Asesor || null,
 
-
     meta_anual_asesor:
-      toNumber(
-        row.Meta_Anual_Asesor
-      ),
-
+      toNumber(row.Meta_Anual_Asesor),
 
     sede:
       row.Sede || null,
 
-
     meta_anual_sede:
-      toNumber(
-        row.Meta_Anual_Sede
-      ),
-
+      toNumber(row.Meta_Anual_Sede),
 
     nombre_almacen:
       row.Nombre_Almacen || null,
 
-
     codigo_articulo:
       row.Codigo_Articulo || null,
-
 
     articulo:
       row.Articulo || null,
 
-
     grupo:
       row.Grupo || null,
 
-
     meta_anual_grupo:
-      toNumber(
-        row.Meta_Anual_Grupo
-      ),
-
+      toNumber(row.Meta_Anual_Grupo),
 
     factura_paga_total:
       row.Factura_Paga_Total || null,
 
-
     valor_pagado:
-      toNumber(
-        row.Valor_Pagado
-      ),
-
+      toNumber(row.Valor_Pagado),
 
     valor_total_articulo:
-      toNumber(
-        row.Valor_Total_Articulo
-      ),
-
+      toNumber(row.Valor_Total_Articulo),
 
     dias_mora:
-
       row.Dias_Mora !== null &&
       row.Dias_Mora !== undefined
-
-        ? parseInt(
-            row.Dias_Mora,
-            10
-          )
-
+        ? parseInt(row.Dias_Mora, 10)
         : null,
 
-
     kilos:
-      toNumber(
-        row.Kilos
-      ),
-
+      toNumber(row.Kilos),
 
     valor_kilo:
-      toNumber(
-        row.Valor_Kilo
-      ),
-
+      toNumber(row.Valor_Kilo),
 
     costo_kilo:
-      toNumber(
-        row.Costo_Kilo
-      ),
-
+      toNumber(row.Costo_Kilo),
 
     peso_unitario:
-      toNumber(
-        row.Peso_Unitario
-      ),
-
+      toNumber(row.Peso_Unitario),
 
     raw_data:
       row
@@ -520,294 +435,159 @@ function mapSAPRecord(row) {
 
 
 // ============================================================
-// GUARDAR REGISTROS EN POSTGRESQL
+// GUARDAR EN POSTGRESQL
 // ============================================================
 
-async function guardarRegistros(
-  registros
-) {
+async function guardarRegistros(registros) {
 
   if (!registros.length) {
-
     return 0;
-
   }
-
 
   const client =
     await pool.connect();
 
-
   let guardados = 0;
-
 
   try {
 
-    await client.query(
-      'BEGIN'
-    );
-
+    await client.query('BEGIN');
 
     const query = `
-
       INSERT INTO facturacion (
-
         sap_id,
-
         cliente,
         nit,
         ciudad,
         departamento,
         ciiu,
-
         numero_factura,
         fecha_factura,
-
         plazo,
-
         cupo_credito,
         cupo_usado,
-
         asesor,
         meta_anual_asesor,
-
         sede,
         meta_anual_sede,
-
         nombre_almacen,
-
         codigo_articulo,
         articulo,
         grupo,
         meta_anual_grupo,
-
         factura_paga_total,
-
         valor_pagado,
         valor_total_articulo,
-
         dias_mora,
-
         kilos,
         valor_kilo,
         costo_kilo,
         peso_unitario,
-
         raw_data,
-
         updated_at
-
       )
 
       VALUES (
-
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-
         $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-
         $21,$22,$23,$24,$25,$26,$27,$28,$29,
-
         CURRENT_TIMESTAMP
-
       )
 
       ON CONFLICT (sap_id)
 
       DO UPDATE SET
 
-        cliente =
-          EXCLUDED.cliente,
-
-        nit =
-          EXCLUDED.nit,
-
-        ciudad =
-          EXCLUDED.ciudad,
-
-        departamento =
-          EXCLUDED.departamento,
-
-        ciiu =
-          EXCLUDED.ciiu,
-
-        numero_factura =
-          EXCLUDED.numero_factura,
-
-        fecha_factura =
-          EXCLUDED.fecha_factura,
-
-        plazo =
-          EXCLUDED.plazo,
-
-        cupo_credito =
-          EXCLUDED.cupo_credito,
-
-        cupo_usado =
-          EXCLUDED.cupo_usado,
-
-        asesor =
-          EXCLUDED.asesor,
-
-        meta_anual_asesor =
-          EXCLUDED.meta_anual_asesor,
-
-        sede =
-          EXCLUDED.sede,
-
-        meta_anual_sede =
-          EXCLUDED.meta_anual_sede,
-
-        nombre_almacen =
-          EXCLUDED.nombre_almacen,
-
-        codigo_articulo =
-          EXCLUDED.codigo_articulo,
-
-        articulo =
-          EXCLUDED.articulo,
-
-        grupo =
-          EXCLUDED.grupo,
-
-        meta_anual_grupo =
-          EXCLUDED.meta_anual_grupo,
-
-        factura_paga_total =
-          EXCLUDED.factura_paga_total,
-
-        valor_pagado =
-          EXCLUDED.valor_pagado,
-
-        valor_total_articulo =
-          EXCLUDED.valor_total_articulo,
-
-        dias_mora =
-          EXCLUDED.dias_mora,
-
-        kilos =
-          EXCLUDED.kilos,
-
-        valor_kilo =
-          EXCLUDED.valor_kilo,
-
-        costo_kilo =
-          EXCLUDED.costo_kilo,
-
-        peso_unitario =
-          EXCLUDED.peso_unitario,
-
-        raw_data =
-          EXCLUDED.raw_data,
-
-        updated_at =
-          CURRENT_TIMESTAMP
-
+        cliente = EXCLUDED.cliente,
+        nit = EXCLUDED.nit,
+        ciudad = EXCLUDED.ciudad,
+        departamento = EXCLUDED.departamento,
+        ciiu = EXCLUDED.ciiu,
+        numero_factura = EXCLUDED.numero_factura,
+        fecha_factura = EXCLUDED.fecha_factura,
+        plazo = EXCLUDED.plazo,
+        cupo_credito = EXCLUDED.cupo_credito,
+        cupo_usado = EXCLUDED.cupo_usado,
+        asesor = EXCLUDED.asesor,
+        meta_anual_asesor = EXCLUDED.meta_anual_asesor,
+        sede = EXCLUDED.sede,
+        meta_anual_sede = EXCLUDED.meta_anual_sede,
+        nombre_almacen = EXCLUDED.nombre_almacen,
+        codigo_articulo = EXCLUDED.codigo_articulo,
+        articulo = EXCLUDED.articulo,
+        grupo = EXCLUDED.grupo,
+        meta_anual_grupo = EXCLUDED.meta_anual_grupo,
+        factura_paga_total = EXCLUDED.factura_paga_total,
+        valor_pagado = EXCLUDED.valor_pagado,
+        valor_total_articulo = EXCLUDED.valor_total_articulo,
+        dias_mora = EXCLUDED.dias_mora,
+        kilos = EXCLUDED.kilos,
+        valor_kilo = EXCLUDED.valor_kilo,
+        costo_kilo = EXCLUDED.costo_kilo,
+        peso_unitario = EXCLUDED.peso_unitario,
+        raw_data = EXCLUDED.raw_data,
+        updated_at = CURRENT_TIMESTAMP
     `;
 
 
-    for (
-      const registro of registros
-    ) {
+    for (const registro of registros) {
 
       if (!registro.sap_id) {
-
         continue;
-
       }
-
 
       const values = [
 
         registro.sap_id,
-
         registro.cliente,
-
         registro.nit,
-
         registro.ciudad,
-
         registro.departamento,
-
         registro.ciiu,
-
         registro.numero_factura,
-
         registro.fecha_factura,
-
         registro.plazo,
-
         registro.cupo_credito,
-
         registro.cupo_usado,
-
         registro.asesor,
-
         registro.meta_anual_asesor,
-
         registro.sede,
-
         registro.meta_anual_sede,
-
         registro.nombre_almacen,
-
         registro.codigo_articulo,
-
         registro.articulo,
-
         registro.grupo,
-
         registro.meta_anual_grupo,
-
         registro.factura_paga_total,
-
         registro.valor_pagado,
-
         registro.valor_total_articulo,
-
         registro.dias_mora,
-
         registro.kilos,
-
         registro.valor_kilo,
-
         registro.costo_kilo,
-
         registro.peso_unitario,
-
-        JSON.stringify(
-          registro.raw_data
-        )
+        JSON.stringify(registro.raw_data)
 
       ];
-
 
       await client.query(
         query,
         values
       );
 
-
       guardados++;
 
     }
 
-
-    await client.query(
-      'COMMIT'
-    );
-
+    await client.query('COMMIT');
 
     return guardados;
 
+  } catch (error) {
 
-  } catch (err) {
+    await client.query('ROLLBACK');
 
-    await client.query(
-      'ROLLBACK'
-    );
-
-    throw err;
-
+    throw error;
 
   } finally {
 
@@ -822,435 +602,363 @@ async function guardarRegistros(
 // SINCRONIZAR SAP
 // ============================================================
 
-app.get(
-  '/sync-sap',
-  async (req, res) => {
+app.get('/sync-sap', async (req, res) => {
 
-    const inicio =
-      req.query.inicio ||
-      '2026-08-01';
+  const inicio =
+    req.query.inicio ||
+    '2026-08-01';
 
-
-    const fin =
-      req.query.fin ||
-      '2026-08-27';
+  const fin =
+    req.query.fin ||
+    '2026-08-27';
 
 
-    const fechaRegex =
-      /^\d{4}-\d{2}-\d{2}$/;
+  const fechaRegex =
+    /^\d{4}-\d{2}-\d{2}$/;
 
 
-    if (
-      !fechaRegex.test(inicio) ||
-      !fechaRegex.test(fin)
-    ) {
+  if (
+    !fechaRegex.test(inicio) ||
+    !fechaRegex.test(fin)
+  ) {
 
-      return res.status(400).json({
+    return res.status(400).json({
 
-        ok: false,
+      ok: false,
 
-        error:
-          'Las fechas deben tener formato YYYY-MM-DD',
+      error:
+        'Las fechas deben tener formato YYYY-MM-DD',
 
-        ejemplo:
-          '/sync-sap?inicio=2026-08-01&fin=2026-08-27'
+      ejemplo:
+        '/sync-sap?inicio=2026-08-01&fin=2026-08-27'
 
-      });
+    });
 
-    }
-
-
-    if (inicio > fin) {
-
-      return res.status(400).json({
-
-        ok: false,
-
-        error:
-          'La fecha inicio no puede ser mayor que la fecha fin'
-
-      });
-
-    }
+  }
 
 
-    const inicioProceso =
-      Date.now();
+  if (inicio > fin) {
+
+    return res.status(400).json({
+
+      ok: false,
+
+      error:
+        'La fecha inicio no puede ser mayor que la fecha fin'
+
+    });
+
+  }
 
 
-    let skip = 0;
-
-    let pagina = 0;
-
-    let totalSAP = 0;
-
-    let totalGuardados = 0;
-
-    let totalPaginas = 0;
+  const inicioProceso =
+    Date.now();
 
 
-    try {
+  let skip = 0;
+  let pagina = 0;
+  let totalSAP = 0;
+  let totalGuardados = 0;
+  let totalPaginas = 0;
+
+
+  try {
+
+    console.log(
+      '==========================================='
+    );
+
+    console.log(
+      `SYNC SAP ${inicio} → ${fin}`
+    );
+
+    console.log(
+      '==========================================='
+    );
+
+
+    while (true) {
+
+      pagina++;
+
 
       console.log(
-        '==========================================='
-      );
-
-      console.log(
-        `SYNC SAP ${inicio} → ${fin}`
-      );
-
-      console.log(
-        '==========================================='
+        `Consultando SAP - página ${pagina} - skip ${skip} - top ${SAP_PAGE_SIZE}`
       );
 
 
-      while (true) {
-
-        pagina++;
-
-
-        console.log(
-          `Consultando SAP - página ${pagina} - skip ${skip} - top ${SAP_PAGE_SIZE}`
-        );
-
-
-        const data =
-          await consultarSAPPagina(
-
-            inicio,
-
-            fin,
-
-            skip,
-
-            SAP_PAGE_SIZE
-
-          );
-
-
-        const resultados =
-          data?.d?.results || [];
-
-
-        const cantidad =
-          resultados.length;
-
-
-        console.log(
-          `SAP devolvió ${cantidad} registros`
-        );
-
-
-        if (cantidad === 0) {
-
-          break;
-
-        }
-
-
-        totalSAP += cantidad;
-
-
-        const registros =
-          resultados
-
-            .map(
-              mapSAPRecord
-            )
-
-            .filter(
-              registro =>
-                registro.sap_id
-            );
-
-
-        const guardados =
-          await guardarRegistros(
-            registros
-          );
-
-
-        totalGuardados +=
-          guardados;
-
-
-        totalPaginas =
-          pagina;
-
-
-        if (
-          cantidad <
+      const data =
+        await consultarSAPPagina(
+          inicio,
+          fin,
+          skip,
           SAP_PAGE_SIZE
-        ) {
-
-          break;
-
-        }
+        );
 
 
-        skip +=
-          SAP_PAGE_SIZE;
+      const resultados =
+        data?.d?.results || [];
 
+
+      const cantidad =
+        resultados.length;
+
+
+      console.log(
+        `SAP devolvió ${cantidad} registros`
+      );
+
+
+      if (cantidad === 0) {
+        break;
       }
 
 
-      const tiempoMs =
-        Date.now() -
-        inicioProceso;
+      totalSAP += cantidad;
 
 
-      console.log(
-        '✓ Sincronización terminada'
-      );
+      const registros =
+        resultados
+          .map(mapSAPRecord)
+          .filter(
+            registro =>
+              registro.sap_id
+          );
 
 
-      console.log(
-        `✓ Registros SAP: ${totalSAP}`
-      );
-
-
-      console.log(
-        `✓ Registros procesados: ${totalGuardados}`
-      );
-
-
-      console.log(
-        `✓ Páginas: ${totalPaginas}`
-      );
-
-
-      console.log(
-        `✓ Tiempo: ${tiempoMs} ms`
-      );
-
-
-      res.json({
-
-        ok: true,
-
-        mensaje:
-          'Sincronización SAP completada',
-
-        fechas: {
-
-          inicio,
-
-          fin
-
-        },
-
-        registrosSAP:
-          totalSAP,
-
-        registrosProcesados:
-          totalGuardados,
-
-        paginas:
-          totalPaginas,
-
-        paginaSize:
-          SAP_PAGE_SIZE,
-
-        tiempoMs
-
-      });
-
-
-    } catch (err) {
-
-      console.error(
-        'Error sincronizando SAP:',
-        err
-      );
-
-
-      res.status(500).json({
-
-        ok: false,
-
-        error:
-          'Error al consultar o sincronizar SAP',
-
-        detalle:
-          err.detalle ||
-          err.message,
-
-        httpStatusSAP:
-          err.status ||
-          null,
-
-        fechas: {
-
-          inicio,
-
-          fin
-
-        },
-
-        paginasProcesadas:
-          totalPaginas,
-
-        registrosSAP:
-          totalSAP,
-
-        registrosProcesados:
-          totalGuardados
-
-      });
-
-    }
-
-  }
-);
-
-
-// ============================================================
-// OBTENER FACTURACIÓN
-// ============================================================
-
-app.get(
-  '/facturacion',
-  async (req, res) => {
-
-    const limit =
-      Math.min(
-        parseInt(
-          req.query.limit
-        ) || 50,
-        1000
-      );
-
-
-    const offset =
-      parseInt(
-        req.query.offset
-      ) || 0;
-
-
-    const fecha_inicio =
-      req.query.fecha_inicio ||
-      '2026-08-01';
-
-
-    const fecha_fin =
-      req.query.fecha_fin ||
-      '2026-08-27';
-
-
-    try {
-
-      const result =
-        await pool.query(
-
-          `
-
-          SELECT *
-
-          FROM facturacion
-
-          WHERE fecha_factura
-            BETWEEN $1::DATE
-            AND $2::DATE
-
-          ORDER BY
-            fecha_factura DESC,
-            id DESC
-
-          LIMIT $3
-          OFFSET $4;
-
-          `,
-
-          [
-
-            fecha_inicio,
-
-            fecha_fin,
-
-            limit,
-
-            offset
-
-          ]
-
+      const guardados =
+        await guardarRegistros(
+          registros
         );
 
 
-      const countResult =
-        await pool.query(
+      totalGuardados += guardados;
 
-          `
-
-          SELECT
-            COUNT(*)::INTEGER AS total
-
-          FROM facturacion
-
-          WHERE fecha_factura
-            BETWEEN $1::DATE
-            AND $2::DATE;
-
-          `,
-
-          [
-
-            fecha_inicio,
-
-            fecha_fin
-
-          ]
-
-        );
+      totalPaginas = pagina;
 
 
-      res.json({
-
-        data:
-          result.rows,
-
-        total:
-          countResult.rows[0].total,
-
-        limit,
-
-        offset,
-
-        fechas: {
-
-          inicio:
-            fecha_inicio,
-
-          fin:
-            fecha_fin
-
-        }
-
-      });
+      if (
+        cantidad < SAP_PAGE_SIZE
+      ) {
+        break;
+      }
 
 
-    } catch (err) {
-
-      console.error(
-        'Error on /facturacion:',
-        err
-      );
-
-
-      res.status(500).json({
-
-        error:
-          err.message
-
-      });
+      skip += SAP_PAGE_SIZE;
 
     }
 
+
+    const tiempoMs =
+      Date.now() -
+      inicioProceso;
+
+
+    console.log(
+      '✓ Sincronización terminada'
+    );
+
+    console.log(
+      `✓ Registros SAP: ${totalSAP}`
+    );
+
+    console.log(
+      `✓ Registros procesados: ${totalGuardados}`
+    );
+
+    console.log(
+      `✓ Páginas: ${totalPaginas}`
+    );
+
+
+    res.json({
+
+      ok: true,
+
+      mensaje:
+        'Sincronización SAP completada',
+
+      fechas: {
+        inicio,
+        fin
+      },
+
+      registrosSAP:
+        totalSAP,
+
+      registrosProcesados:
+        totalGuardados,
+
+      paginas:
+        totalPaginas,
+
+      paginaSize:
+        SAP_PAGE_SIZE,
+
+      tiempoMs
+
+    });
+
+
+  } catch (error) {
+
+    console.error(
+      'Error sincronizando SAP:',
+      error
+    );
+
+
+    res.status(500).json({
+
+      ok: false,
+
+      error:
+        'Error al consultar o sincronizar SAP',
+
+      detalle:
+        error.detalle ||
+        error.message,
+
+      httpStatusSAP:
+        error.status ||
+        null,
+
+      fechas: {
+        inicio,
+        fin
+      },
+
+      paginasProcesadas:
+        totalPaginas,
+
+      registrosSAP:
+        totalSAP,
+
+      registrosProcesados:
+        totalGuardados
+
+    });
+
   }
-);
+
+});
 
 
 // ============================================================
-// DASHBOARD - HOJA DE ASESOR
+// FACTURACION
+// ============================================================
+
+app.get('/facturacion', async (req, res) => {
+
+  const limit =
+    Math.min(
+      parseInt(req.query.limit) || 50,
+      1000
+    );
+
+  const offset =
+    parseInt(req.query.offset) || 0;
+
+  const fecha_inicio =
+    req.query.fecha_inicio ||
+    '2026-08-01';
+
+  const fecha_fin =
+    req.query.fecha_fin ||
+    '2026-08-27';
+
+
+  try {
+
+    const result =
+      await pool.query(
+        `
+        SELECT *
+        FROM facturacion
+
+        WHERE fecha_factura
+          BETWEEN $1::DATE
+          AND $2::DATE
+
+        ORDER BY
+          fecha_factura DESC,
+          id DESC
+
+        LIMIT $3
+        OFFSET $4
+        `,
+        [
+          fecha_inicio,
+          fecha_fin,
+          limit,
+          offset
+        ]
+      );
+
+
+    const countResult =
+      await pool.query(
+        `
+        SELECT
+          COUNT(*)::INTEGER AS total
+
+        FROM facturacion
+
+        WHERE fecha_factura
+          BETWEEN $1::DATE
+          AND $2::DATE
+        `,
+        [
+          fecha_inicio,
+          fecha_fin
+        ]
+      );
+
+
+    res.json({
+
+      data:
+        result.rows,
+
+      total:
+        countResult.rows[0].total,
+
+      limit,
+
+      offset,
+
+      fechas: {
+        inicio: fecha_inicio,
+        fin: fecha_fin
+      }
+
+    });
+
+
+  } catch (error) {
+
+    console.error(
+      'Error en /facturacion:',
+      error
+    );
+
+
+    res.status(500).json({
+
+      ok: false,
+
+      error:
+        error.message
+
+    });
+
+  }
+
+});
+
+
+// ============================================================
+// HOJA DE ASESOR
 // ============================================================
 
 app.get(
@@ -1261,7 +969,6 @@ app.get(
       req.query.inicio ||
       '2026-08-01';
 
-
     const fin =
       req.query.fin ||
       '2026-08-27';
@@ -1271,9 +978,7 @@ app.get(
 
       const result =
         await pool.query(
-
           `
-
           SELECT
 
             asesor,
@@ -1287,9 +992,7 @@ app.get(
               AS total_facturas,
 
             COALESCE(
-              SUM(
-                valor_total_articulo
-              ),
+              SUM(valor_total_articulo),
               0
             ) AS total_monto,
 
@@ -1303,16 +1006,13 @@ app.get(
               WHEN SUM(kilos) > 0
 
               THEN
-                SUM(
-                  valor_total_articulo
-                )
+                SUM(valor_total_articulo)
                 /
                 SUM(kilos)
 
               ELSE 0
 
-            END
-              AS promedio_valor_kilo
+            END AS promedio_valor_kilo
 
           FROM facturacion
 
@@ -1324,18 +1024,12 @@ app.get(
 
           GROUP BY asesor
 
-          ORDER BY total_monto DESC;
-
+          ORDER BY total_monto DESC
           `,
-
           [
-
             inicio,
-
             fin
-
           ]
-
         );
 
 
@@ -1345,28 +1039,27 @@ app.get(
           result.rows,
 
         fechas: {
-
           inicio,
-
           fin
-
         }
 
       });
 
 
-    } catch (err) {
+    } catch (error) {
 
       console.error(
-        'Error on hoja-asesor:',
-        err
+        'Error en hoja-asesor:',
+        error
       );
 
 
       res.status(500).json({
 
+        ok: false,
+
         error:
-          err.message
+          error.message
 
       });
 
@@ -1377,7 +1070,7 @@ app.get(
 
 
 // ============================================================
-// DASHBOARD - HOJA DE CLIENTE
+// HOJA DE CLIENTE
 // ============================================================
 
 app.get(
@@ -1388,7 +1081,6 @@ app.get(
       req.query.inicio ||
       '2026-08-01';
 
-
     const fin =
       req.query.fin ||
       '2026-08-27';
@@ -1398,9 +1090,7 @@ app.get(
 
       const result =
         await pool.query(
-
           `
-
           SELECT
 
             cliente,
@@ -1416,9 +1106,7 @@ app.get(
               AS total_facturas,
 
             COALESCE(
-              SUM(
-                valor_total_articulo
-              ),
+              SUM(valor_total_articulo),
               0
             ) AS total_monto,
 
@@ -1427,9 +1115,8 @@ app.get(
               0
             ) AS total_kilos,
 
-            MAX(
-              fecha_factura
-            ) AS ultima_factura
+            MAX(fecha_factura)
+              AS ultima_factura
 
           FROM facturacion
 
@@ -1446,18 +1133,12 @@ app.get(
           ORDER BY
             total_monto DESC
 
-          LIMIT 100;
-
+          LIMIT 100
           `,
-
           [
-
             inicio,
-
             fin
-
           ]
-
         );
 
 
@@ -1467,28 +1148,27 @@ app.get(
           result.rows,
 
         fechas: {
-
           inicio,
-
           fin
-
         }
 
       });
 
 
-    } catch (err) {
+    } catch (error) {
 
       console.error(
-        'Error on hoja-cliente:',
-        err
+        'Error en hoja-cliente:',
+        error
       );
 
 
       res.status(500).json({
 
+        ok: false,
+
         error:
-          err.message
+          error.message
 
       });
 
@@ -1499,7 +1179,7 @@ app.get(
 
 
 // ============================================================
-// DASHBOARD - LABOR COMERCIAL
+// LABOR COMERCIAL
 // ============================================================
 
 app.get(
@@ -1510,7 +1190,6 @@ app.get(
       req.query.inicio ||
       '2026-08-01';
 
-
     const fin =
       req.query.fin ||
       '2026-08-27';
@@ -1520,9 +1199,7 @@ app.get(
 
       const result =
         await pool.query(
-
           `
-
           SELECT
 
             sede,
@@ -1536,9 +1213,7 @@ app.get(
               AS total_facturas,
 
             COALESCE(
-              SUM(
-                valor_total_articulo
-              ),
+              SUM(valor_total_articulo),
               0
             ) AS total_monto,
 
@@ -1557,18 +1232,12 @@ app.get(
 
           GROUP BY sede
 
-          ORDER BY total_monto DESC;
-
+          ORDER BY total_monto DESC
           `,
-
           [
-
             inicio,
-
             fin
-
           ]
-
         );
 
 
@@ -1578,11 +1247,8 @@ app.get(
           result.rows,
 
         fechas: {
-
           inicio,
-
           fin
-
         },
 
         nota:
@@ -1591,18 +1257,20 @@ app.get(
       });
 
 
-    } catch (err) {
+    } catch (error) {
 
       console.error(
-        'Error on labor-comercial:',
-        err
+        'Error en labor-comercial:',
+        error
       );
 
 
       res.status(500).json({
 
+        ok: false,
+
         error:
-          err.message
+          error.message
 
       });
 
@@ -1613,7 +1281,7 @@ app.get(
 
 
 // ============================================================
-// DASHBOARD - PORTAFOLIO Y CARTERA
+// PORTAFOLIO Y CARTERA
 // ============================================================
 
 app.get(
@@ -1624,7 +1292,6 @@ app.get(
       req.query.inicio ||
       '2026-08-01';
 
-
     const fin =
       req.query.fin ||
       '2026-08-27';
@@ -1634,9 +1301,7 @@ app.get(
 
       const result =
         await pool.query(
-
           `
-
           SELECT
 
             grupo,
@@ -1650,9 +1315,7 @@ app.get(
               AS total_facturas,
 
             COALESCE(
-              SUM(
-                valor_total_articulo
-              ),
+              SUM(valor_total_articulo),
               0
             ) AS total_monto,
 
@@ -1671,18 +1334,12 @@ app.get(
 
           GROUP BY grupo
 
-          ORDER BY total_monto DESC;
-
+          ORDER BY total_monto DESC
           `,
-
           [
-
             inicio,
-
             fin
-
           ]
-
         );
 
 
@@ -1692,11 +1349,8 @@ app.get(
           result.rows,
 
         fechas: {
-
           inicio,
-
           fin
-
         },
 
         nota:
@@ -1705,18 +1359,20 @@ app.get(
       });
 
 
-    } catch (err) {
+    } catch (error) {
 
       console.error(
-        'Error on portafolio-cartera:',
-        err
+        'Error en portafolio-cartera:',
+        error
       );
 
 
       res.status(500).json({
 
+        ok: false,
+
         error:
-          err.message
+          error.message
 
       });
 
@@ -1727,7 +1383,7 @@ app.get(
 
 
 // ============================================================
-// DASHBOARD - PLANEACIÓN NOGALES
+// PLANEACION NOGALES
 // ============================================================
 
 app.get(
@@ -1738,7 +1394,6 @@ app.get(
       req.query.inicio ||
       '2026-08-01';
 
-
     const fin =
       req.query.fin ||
       '2026-08-27';
@@ -1748,9 +1403,7 @@ app.get(
 
       const result =
         await pool.query(
-
           `
-
           SELECT
 
             sede,
@@ -1764,9 +1417,7 @@ app.get(
               AS total_facturas,
 
             COALESCE(
-              SUM(
-                valor_total_articulo
-              ),
+              SUM(valor_total_articulo),
               0
             ) AS total_monto,
 
@@ -1785,18 +1436,12 @@ app.get(
 
           GROUP BY sede
 
-          ORDER BY total_monto DESC;
-
+          ORDER BY total_monto DESC
           `,
-
           [
-
             inicio,
-
             fin
-
           ]
-
         );
 
 
@@ -1806,11 +1451,8 @@ app.get(
           result.rows,
 
         fechas: {
-
           inicio,
-
           fin
-
         },
 
         nota:
@@ -1819,18 +1461,20 @@ app.get(
       });
 
 
-    } catch (err) {
+    } catch (error) {
 
       console.error(
-        'Error on planeacion-nogales:',
-        err
+        'Error en planeacion-nogales:',
+        error
       );
 
 
       res.status(500).json({
 
+        ok: false,
+
         error:
-          err.message
+          error.message
 
       });
 
@@ -1841,59 +1485,7 @@ app.get(
 
 
 // ============================================================
-// RUTA DE PRUEBA
-// ============================================================
-
-app.get(
-  '/',
-  (req, res) => {
-
-    res.json({
-
-      ok: true,
-
-      servicio:
-        'Backend La Campana',
-
-      mensaje:
-        'Servidor funcionando correctamente',
-
-      rutas: {
-
-        health:
-          '/health',
-
-        syncSAP:
-          '/sync-sap?inicio=YYYY-MM-DD&fin=YYYY-MM-DD',
-
-        facturacion:
-          '/facturacion',
-
-        hojaAsesor:
-          '/dashboards/hoja-asesor',
-
-        hojaCliente:
-          '/dashboards/hoja-cliente',
-
-        laborComercial:
-          '/dashboards/labor-comercial',
-
-        portafolioCartera:
-          '/dashboards/portafolio-cartera',
-
-        planeacionNogales:
-          '/dashboards/planeacion-nogales'
-
-      }
-
-    });
-
-  }
-);
-
-
-// ============================================================
-// ERROR 404
+// 404
 // ============================================================
 
 app.use(
@@ -1916,42 +1508,12 @@ app.use(
 
 
 // ============================================================
-// MANEJO GENERAL DE ERRORES
-// ============================================================
-
-app.use(
-  (err, req, res, next) => {
-
-    console.error(
-      'Error general:',
-      err
-    );
-
-
-    res.status(500).json({
-
-      ok: false,
-
-      error:
-        'Error interno del servidor',
-
-      detalle:
-        err.message
-
-    });
-
-  }
-);
-
-
-// ============================================================
-// ARRANCAR SERVIDOR
+// SERVIDOR
 // ============================================================
 
 async function startServer() {
 
   await initDB();
-
 
   app.listen(
     PORT,
@@ -1962,11 +1524,15 @@ async function startServer() {
       );
 
       console.log(
-        `✓ Health: /health`
+        '✓ GET /health'
       );
 
       console.log(
-        `✓ SAP Sync: /sync-sap?inicio=YYYY-MM-DD&fin=YYYY-MM-DD`
+        '✓ GET /sync-sap'
+      );
+
+      console.log(
+        '✓ GET /facturacion'
       );
 
     }
@@ -1976,11 +1542,11 @@ async function startServer() {
 
 
 startServer()
-  .catch(err => {
+  .catch(error => {
 
     console.error(
-      'Failed to start server:',
-      err
+      'Error iniciando servidor:',
+      error
     );
 
     process.exit(1);
