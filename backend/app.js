@@ -1,3 +1,4 @@
+js
 require('dotenv').config();
 
 const express = require('express');
@@ -19,6 +20,11 @@ const SAP_PAGE_SIZE = parseInt(
   10
 );
 
+const SAP_USER = process.env.SAP_USER;
+const SAP_PASSWORD = process.env.SAP_PASSWORD;
+
+const SAP_HOST = 'NDB.n00.CAMPANADB02';
+
 // ============================================================
 // MIDDLEWARE
 // ============================================================
@@ -35,7 +41,10 @@ console.log('===========================================');
 console.log('BACKEND LA CAMPANA');
 console.log('===========================================');
 console.log('SAP:', SAP_BASE_URL);
+console.log('SAP HOST:', SAP_HOST);
 console.log('SAP PAGE SIZE:', SAP_PAGE_SIZE);
+console.log('SAP USER CONFIGURADO:', !!SAP_USER);
+console.log('SAP PASSWORD CONFIGURADA:', !!SAP_PASSWORD);
 console.log('===========================================');
 
 // ============================================================
@@ -238,19 +247,25 @@ async function consultarSAPPagina(
   top
 ) {
   const filter =
-    `Fecha_Factura ge datetime'${inicio}T00:00:00' and ` +
-    `Fecha_Factura le datetime'${fin}T23:59:59'`;
+    `Fecha_Factura ge datetime'${inicio}' and ` +
+    `Fecha_Factura le datetime'${fin}'`;
+
+  if (!SAP_USER || !SAP_PASSWORD) {
+    const error = new Error(
+      'Faltan las credenciales SAP en las variables de entorno'
+    );
+
+    error.status = null;
+    error.detalle =
+      'Configura SAP_USER y SAP_PASSWORD en Render';
+
+    throw error;
+  }
 
   try {
-    console.log('-------------------------------------------');
-    console.log('CONSULTA SAP');
-    console.log('URL:', SAP_BASE_URL);
-    console.log('HOST:', process.env.SAP_HOST);
-    console.log('USER:', process.env.SAP_USER ? 'CONFIGURADO' : 'NO CONFIGURADO');
-    console.log('FILTER:', filter);
-    console.log('SKIP:', skip);
-    console.log('TOP:', top);
-    console.log('-------------------------------------------');
+    console.log(
+      `Consultando SAP: ${inicio} → ${fin} | skip=${skip} | top=${top}`
+    );
 
     const response = await axios.get(
       SAP_BASE_URL,
@@ -262,40 +277,31 @@ async function consultarSAPPagina(
           $skip: skip
         },
 
+        auth: {
+          username: SAP_USER,
+          password: SAP_PASSWORD
+        },
+
+        headers: {
+          Accept: 'application/json',
+          Host: SAP_HOST
+        },
+
         httpsAgent: new https.Agent({
           rejectUnauthorized: false
         }),
 
-        timeout: 120000,
-
-        headers: {
-          Accept: 'application/json',
-
-          // MUY IMPORTANTE:
-          Host:
-            process.env.SAP_HOST ||
-            'NDB.n00.CAMPANADB02'
-        },
-
-        auth: {
-          username:
-            process.env.SAP_USER,
-
-          password:
-            process.env.SAP_PASSWORD
-        }
+        timeout: 120000
       }
     );
 
     console.log(
-      '✓ SAP respondió:',
-      response.status
+      `✓ SAP respondió HTTP ${response.status}`
     );
 
     return response.data;
 
   } catch (error) {
-
     const status =
       error.response?.status || null;
 
@@ -303,49 +309,29 @@ async function consultarSAPPagina(
       error.response?.data ||
       error.message;
 
-    // Evitar que Render imprima una página HTML gigante
-    if (typeof detalle === 'string') {
-
-      detalle =
-        detalle
-          .replace(/<[^>]*>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-
+    if (typeof detalle === 'object') {
+      try {
+        detalle = JSON.stringify(detalle);
+      } catch {
+        detalle = String(detalle);
+      }
     }
 
     console.error(
-      '==========================================='
+      `✗ Error SAP HTTP ${status || 'SIN RESPUESTA'}`
     );
 
     console.error(
-      'ERROR CONSULTANDO SAP'
-    );
-
-    console.error(
-      'HTTP:',
-      status
-    );
-
-    console.error(
-      'DETALLE:',
+      'Detalle SAP:',
       detalle
     );
 
-    console.error(
-      '==========================================='
+    const nuevoError = new Error(
+      `SAP respondió con error${status ? ` HTTP ${status}` : ''}`
     );
 
-    const nuevoError =
-      new Error(
-        `SAP respondió con error${status ? ` HTTP ${status}` : ''}`
-      );
-
-    nuevoError.status =
-      status;
-
-    nuevoError.detalle =
-      detalle;
+    nuevoError.status = status;
+    nuevoError.detalle = detalle;
 
     throw nuevoError;
   }
