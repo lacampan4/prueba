@@ -238,10 +238,20 @@ async function consultarSAPPagina(
   top
 ) {
   const filter =
-    `Fecha_Factura ge datetime'${inicio}' and ` +
-    `Fecha_Factura le datetime'${fin}'`;
+    `Fecha_Factura ge datetime'${inicio}T00:00:00' and ` +
+    `Fecha_Factura le datetime'${fin}T23:59:59'`;
 
   try {
+    console.log('-------------------------------------------');
+    console.log('CONSULTA SAP');
+    console.log('URL:', SAP_BASE_URL);
+    console.log('HOST:', process.env.SAP_HOST);
+    console.log('USER:', process.env.SAP_USER ? 'CONFIGURADO' : 'NO CONFIGURADO');
+    console.log('FILTER:', filter);
+    console.log('SKIP:', skip);
+    console.log('TOP:', top);
+    console.log('-------------------------------------------');
+
     const response = await axios.get(
       SAP_BASE_URL,
       {
@@ -259,27 +269,83 @@ async function consultarSAPPagina(
         timeout: 120000,
 
         headers: {
-          Accept: 'application/json'
+          Accept: 'application/json',
+
+          // MUY IMPORTANTE:
+          Host:
+            process.env.SAP_HOST ||
+            'NDB.n00.CAMPANADB02'
+        },
+
+        auth: {
+          username:
+            process.env.SAP_USER,
+
+          password:
+            process.env.SAP_PASSWORD
         }
       }
+    );
+
+    console.log(
+      '✓ SAP respondió:',
+      response.status
     );
 
     return response.data;
 
   } catch (error) {
+
     const status =
       error.response?.status || null;
 
-    const detalle =
+    let detalle =
       error.response?.data ||
       error.message;
 
-    const nuevoError = new Error(
-      `SAP respondió con error${status ? ` HTTP ${status}` : ''}`
+    // Evitar que Render imprima una página HTML gigante
+    if (typeof detalle === 'string') {
+
+      detalle =
+        detalle
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+    }
+
+    console.error(
+      '==========================================='
     );
 
-    nuevoError.status = status;
-    nuevoError.detalle = detalle;
+    console.error(
+      'ERROR CONSULTANDO SAP'
+    );
+
+    console.error(
+      'HTTP:',
+      status
+    );
+
+    console.error(
+      'DETALLE:',
+      detalle
+    );
+
+    console.error(
+      '==========================================='
+    );
+
+    const nuevoError =
+      new Error(
+        `SAP respondió con error${status ? ` HTTP ${status}` : ''}`
+      );
+
+    nuevoError.status =
+      status;
+
+    nuevoError.detalle =
+      detalle;
 
     throw nuevoError;
   }
