@@ -11,18 +11,30 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const SAP_BASE_URL =
+  process.env.SAP_SERVICE_URL ||
   process.env.SAP_BASE_URL ||
   'https://170.239.154.46:4300/api_campana26/facturacion.xsodata/Facturacion';
 
-const SAP_PAGE_SIZE = parseInt(
-  process.env.SAP_PAGE_SIZE || '500',
-  10
+const SAP_HOST =
+  process.env.SAP_SYSTEM_HOST ||
+  'NDB.n00.CAMPANADB02';
+
+const SAP_USER =
+  process.env.SAP_USER || '';
+
+const SAP_PASS =
+  process.env.SAP_PASS || '';
+
+const SAP_PAGE_SIZE = Math.min(
+  parseInt(process.env.SAP_PAGE_SIZE || '5000', 10),
+  5000
 );
 
-const SAP_USER = process.env.SAP_USER;
-const SAP_PASSWORD = process.env.SAP_PASSWORD;
+// Tamaño de lote para PostgreSQL
+const DB_BATCH_SIZE = 250;
 
-const SAP_HOST = 'NDB.n00.CAMPANADB02';
+// Evita dos sincronizaciones simultáneas
+let sincronizacionEnCurso = false;
 
 // ============================================================
 // MIDDLEWARE
@@ -43,7 +55,8 @@ console.log('SAP:', SAP_BASE_URL);
 console.log('SAP HOST:', SAP_HOST);
 console.log('SAP PAGE SIZE:', SAP_PAGE_SIZE);
 console.log('SAP USER CONFIGURADO:', !!SAP_USER);
-console.log('SAP PASSWORD CONFIGURADA:', !!SAP_PASSWORD);
+console.log('SAP PASSWORD CONFIGURADA:', !!SAP_PASS);
+console.log('DB BATCH SIZE:', DB_BATCH_SIZE);
 console.log('===========================================');
 
 // ============================================================
@@ -79,6 +92,15 @@ function parseSAPDate(value) {
     return text;
   }
 
+  // También soporta fechas ISO de SAP
+  const isoMatch = text.match(
+    /^(\d{4}-\d{2}-\d{2})T/
+  );
+
+  if (isoMatch) {
+    return isoMatch[1];
+  }
+
   return null;
 }
 
@@ -96,6 +118,23 @@ function toNumber(value) {
   return Number.isFinite(number)
     ? number
     : null;
+}
+
+// Divide un array en lotes
+function dividirEnLotes(array, tamano) {
+  const lotes = [];
+
+  for (
+    let i = 0;
+    i < array.length;
+    i += tamano
+  ) {
+    lotes.push(
+      array.slice(i, i + tamano)
+    );
+  }
+
+  return lotes;
 }
 
 // ============================================================
@@ -222,6 +261,7 @@ app.get('/health', async (req, res) => {
       ok: true,
       estado: 'ok',
       baseDatos: 'conectada',
+      sincronizacionEnCurso,
       fecha: new Date().toISOString()
     });
 
@@ -249,23 +289,11 @@ async function consultarSAPPagina(
     `Fecha_Factura ge datetime'${inicio}' and ` +
     `Fecha_Factura le datetime'${fin}'`;
 
-  if (!SAP_USER || !SAP_PASSWORD) {
-    const error = new Error(
-      'Faltan las credenciales SAP en las variables de entorno'
-    );
-
-    error.status = null;
-    error.detalle =
-      'Configura SAP_USER y SAP_PASSWORD en Render';
-
-    throw error;
-  }
+  console.log(
+    `Consultando SAP: ${inicio} → ${fin} | skip=${skip} | top=${top}`
+  );
 
   try {
-    console.log(
-      `Consultando SAP: ${inicio} → ${fin} | skip=${skip} | top=${top}`
-    );
-
     const response = await axios.get(
       SAP_BASE_URL,
       {
@@ -276,21 +304,24 @@ async function consultarSAPPagina(
           $skip: skip
         },
 
-        auth: {
-          username: SAP_USER,
-          password: SAP_PASSWORD
-        },
-
-        headers: {
-          Accept: 'application/json',
-          Host: SAP_HOST
-        },
-
         httpsAgent: new https.Agent({
           rejectUnauthorized: false
         }),
 
-        timeout: 120000
+        timeout: 120000,
+
+        headers: {
+          Host: SAP_HOST,
+          Accept: 'application/json'
+        },
+
+        auth:
+          SAP_USER && SAP_PASS
+            ? {
+                username: SAP_USER,
+                password: SAP_PASS
+              }
+            : undefined
       }
     );
 
@@ -304,25 +335,12 @@ async function consultarSAPPagina(
     const status =
       error.response?.status || null;
 
-    let detalle =
+    const detalle =
       error.response?.data ||
       error.message;
 
-    if (typeof detalle === 'object') {
-      try {
-        detalle = JSON.stringify(detalle);
-      } catch {
-        detalle = String(detalle);
-      }
-    }
-
     console.error(
       `✗ Error SAP HTTP ${status || 'SIN RESPUESTA'}`
-    );
-
-    console.error(
-      'Detalle SAP:',
-      detalle
     );
 
     const nuevoError = new Error(
@@ -330,7 +348,10 @@ async function consultarSAPPagina(
     );
 
     nuevoError.status = status;
-    nuevoError.detalle = detalle;
+    nuevoError.detalle =
+      typeof detalle === 'string'
+        ? detalle
+        : JSON.stringify(detalle);
 
     throw nuevoError;
   }
@@ -427,7 +448,147 @@ function mapSAPRecord(row) {
 }
 
 // ============================================================
-// GUARDAR EN POSTGRESQL
+// GUARDAR UN LOTE EN POSTGRESQL
+// ============================================================
+
+async function guardarLote(client, registros) {
+  if (!registros.length) {
+    return 0;
+  }
+
+  const columnas = [
+    'sap_id',
+    'cliente',
+    'nit',
+    'ciudad',
+    'departamento',
+    'ciiu',
+    'numero_factura',
+    'fecha_factura',
+    'plazo',
+    'cupo_credito',
+    'cupo_usado',
+    'asesor',
+    'meta_anual_asesor',
+    'sede',
+    'meta_anual_sede',
+    'nombre_almacen',
+    'codigo_articulo',
+    'articulo',
+    'grupo',
+    'meta_anual_grupo',
+    'factura_paga_total',
+    'valor_pagado',
+    'valor_total_articulo',
+    'dias_mora',
+    'kilos',
+    'valor_kilo',
+    'costo_kilo',
+    'peso_unitario',
+    'raw_data'
+  ];
+
+  const values = [];
+  const grupos = [];
+
+  registros.forEach((registro, index) => {
+    const base =
+      index * columnas.length;
+
+    const placeholders =
+      columnas.map(
+        (_, i) => `$${base + i + 1}`
+      );
+
+    grupos.push(
+      `(${placeholders.join(',')})`
+    );
+
+    values.push(
+      registro.sap_id,
+      registro.cliente,
+      registro.nit,
+      registro.ciudad,
+      registro.departamento,
+      registro.ciiu,
+      registro.numero_factura,
+      registro.fecha_factura,
+      registro.plazo,
+      registro.cupo_credito,
+      registro.cupo_usado,
+      registro.asesor,
+      registro.meta_anual_asesor,
+      registro.sede,
+      registro.meta_anual_sede,
+      registro.nombre_almacen,
+      registro.codigo_articulo,
+      registro.articulo,
+      registro.grupo,
+      registro.meta_anual_grupo,
+      registro.factura_paga_total,
+      registro.valor_pagado,
+      registro.valor_total_articulo,
+      registro.dias_mora,
+      registro.kilos,
+      registro.valor_kilo,
+      registro.costo_kilo,
+      registro.peso_unitario,
+      JSON.stringify(registro.raw_data)
+    );
+  });
+
+  const query = `
+    INSERT INTO facturacion (
+      ${columnas.join(',')},
+      updated_at
+    )
+
+    VALUES
+      ${grupos.join(',')}
+
+    ON CONFLICT (sap_id)
+    DO UPDATE SET
+      cliente = EXCLUDED.cliente,
+      nit = EXCLUDED.nit,
+      ciudad = EXCLUDED.ciudad,
+      departamento = EXCLUDED.departamento,
+      ciiu = EXCLUDED.ciiu,
+      numero_factura = EXCLUDED.numero_factura,
+      fecha_factura = EXCLUDED.fecha_factura,
+      plazo = EXCLUDED.plazo,
+      cupo_credito = EXCLUDED.cupo_credito,
+      cupo_usado = EXCLUDED.cupo_usado,
+      asesor = EXCLUDED.asesor,
+      meta_anual_asesor = EXCLUDED.meta_anual_asesor,
+      sede = EXCLUDED.sede,
+      meta_anual_sede = EXCLUDED.meta_anual_sede,
+      nombre_almacen = EXCLUDED.nombre_almacen,
+      codigo_articulo = EXCLUDED.codigo_articulo,
+      articulo = EXCLUDED.articulo,
+      grupo = EXCLUDED.grupo,
+      meta_anual_grupo = EXCLUDED.meta_anual_grupo,
+      factura_paga_total = EXCLUDED.factura_paga_total,
+      valor_pagado = EXCLUDED.valor_pagado,
+      valor_total_articulo = EXCLUDED.valor_total_articulo,
+      dias_mora = EXCLUDED.dias_mora,
+      kilos = EXCLUDED.kilos,
+      valor_kilo = EXCLUDED.valor_kilo,
+      costo_kilo = EXCLUDED.costo_kilo,
+      peso_unitario = EXCLUDED.peso_unitario,
+      raw_data = EXCLUDED.raw_data,
+      updated_at = CURRENT_TIMESTAMP
+  `;
+
+  await client.query(
+    query,
+    values
+  );
+
+  return registros.length;
+}
+
+// ============================================================
+// GUARDAR REGISTROS EN LOTES
 // ============================================================
 
 async function guardarRegistros(registros) {
@@ -435,138 +596,69 @@ async function guardarRegistros(registros) {
     return 0;
   }
 
-  const client = await pool.connect();
+  const registrosValidos =
+    registros.filter(
+      registro => registro.sap_id
+    );
+
+  if (!registrosValidos.length) {
+    return 0;
+  }
+
+  const lotes =
+    dividirEnLotes(
+      registrosValidos,
+      DB_BATCH_SIZE
+    );
+
+  const client =
+    await pool.connect();
 
   let guardados = 0;
 
   try {
     await client.query('BEGIN');
 
-    const query = `
-      INSERT INTO facturacion (
-        sap_id,
-        cliente,
-        nit,
-        ciudad,
-        departamento,
-        ciiu,
-        numero_factura,
-        fecha_factura,
-        plazo,
-        cupo_credito,
-        cupo_usado,
-        asesor,
-        meta_anual_asesor,
-        sede,
-        meta_anual_sede,
-        nombre_almacen,
-        codigo_articulo,
-        articulo,
-        grupo,
-        meta_anual_grupo,
-        factura_paga_total,
-        valor_pagado,
-        valor_total_articulo,
-        dias_mora,
-        kilos,
-        valor_kilo,
-        costo_kilo,
-        peso_unitario,
-        raw_data,
-        updated_at
-      )
+    console.log(
+      `Guardando ${registrosValidos.length} registros en ${lotes.length} lotes`
+    );
 
-      VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-        $21,$22,$23,$24,$25,$26,$27,$28,$29,
-        CURRENT_TIMESTAMP
-      )
+    for (
+      let i = 0;
+      i < lotes.length;
+      i++
+    ) {
+      const lote = lotes[i];
 
-      ON CONFLICT (sap_id)
-      DO UPDATE SET
-        cliente = EXCLUDED.cliente,
-        nit = EXCLUDED.nit,
-        ciudad = EXCLUDED.ciudad,
-        departamento = EXCLUDED.departamento,
-        ciiu = EXCLUDED.ciiu,
-        numero_factura = EXCLUDED.numero_factura,
-        fecha_factura = EXCLUDED.fecha_factura,
-        plazo = EXCLUDED.plazo,
-        cupo_credito = EXCLUDED.cupo_credito,
-        cupo_usado = EXCLUDED.cupo_usado,
-        asesor = EXCLUDED.asesor,
-        meta_anual_asesor = EXCLUDED.meta_anual_asesor,
-        sede = EXCLUDED.sede,
-        meta_anual_sede = EXCLUDED.meta_anual_sede,
-        nombre_almacen = EXCLUDED.nombre_almacen,
-        codigo_articulo = EXCLUDED.codigo_articulo,
-        articulo = EXCLUDED.articulo,
-        grupo = EXCLUDED.grupo,
-        meta_anual_grupo = EXCLUDED.meta_anual_grupo,
-        factura_paga_total = EXCLUDED.factura_paga_total,
-        valor_pagado = EXCLUDED.valor_pagado,
-        valor_total_articulo = EXCLUDED.valor_total_articulo,
-        dias_mora = EXCLUDED.dias_mora,
-        kilos = EXCLUDED.kilos,
-        valor_kilo = EXCLUDED.valor_kilo,
-        costo_kilo = EXCLUDED.costo_kilo,
-        peso_unitario = EXCLUDED.peso_unitario,
-        raw_data = EXCLUDED.raw_data,
-        updated_at = CURRENT_TIMESTAMP
-    `;
+      const cantidad =
+        await guardarLote(
+          client,
+          lote
+        );
 
-    for (const registro of registros) {
-      if (!registro.sap_id) {
-        continue;
-      }
+      guardados += cantidad;
 
-      const values = [
-        registro.sap_id,
-        registro.cliente,
-        registro.nit,
-        registro.ciudad,
-        registro.departamento,
-        registro.ciiu,
-        registro.numero_factura,
-        registro.fecha_factura,
-        registro.plazo,
-        registro.cupo_credito,
-        registro.cupo_usado,
-        registro.asesor,
-        registro.meta_anual_asesor,
-        registro.sede,
-        registro.meta_anual_sede,
-        registro.nombre_almacen,
-        registro.codigo_articulo,
-        registro.articulo,
-        registro.grupo,
-        registro.meta_anual_grupo,
-        registro.factura_paga_total,
-        registro.valor_pagado,
-        registro.valor_total_articulo,
-        registro.dias_mora,
-        registro.kilos,
-        registro.valor_kilo,
-        registro.costo_kilo,
-        registro.peso_unitario,
-        JSON.stringify(registro.raw_data)
-      ];
-
-      await client.query(
-        query,
-        values
+      console.log(
+        `✓ Lote ${i + 1}/${lotes.length} guardado (${cantidad} registros)`
       );
-
-      guardados++;
     }
 
     await client.query('COMMIT');
+
+    console.log(
+      `✓ Página guardada: ${guardados} registros`
+    );
 
     return guardados;
 
   } catch (error) {
     await client.query('ROLLBACK');
+
+    console.error(
+      'Error guardando registros:',
+      error
+    );
+
     throw error;
 
   } finally {
@@ -579,6 +671,18 @@ async function guardarRegistros(registros) {
 // ============================================================
 
 app.get('/sync-sap', async (req, res) => {
+
+  // Evita dos sincronizaciones simultáneas
+  if (sincronizacionEnCurso) {
+    return res.status(409).json({
+      ok: false,
+      error:
+        'Ya existe una sincronización SAP en curso.',
+      mensaje:
+        'Espere a que termine la sincronización actual antes de iniciar otra.'
+    });
+  }
+
   const inicio =
     req.query.inicio ||
     '2026-08-01';
@@ -611,7 +715,10 @@ app.get('/sync-sap', async (req, res) => {
     });
   }
 
-  const inicioProceso = Date.now();
+  sincronizacionEnCurso = true;
+
+  const inicioProceso =
+    Date.now();
 
   let skip = 0;
   let pagina = 0;
@@ -621,7 +728,9 @@ app.get('/sync-sap', async (req, res) => {
 
   try {
     console.log('===========================================');
-    console.log(`SYNC SAP ${inicio} → ${fin}`);
+    console.log(
+      `SYNC SAP ${inicio} → ${fin}`
+    );
     console.log('===========================================');
 
     while (true) {
@@ -663,6 +772,10 @@ app.get('/sync-sap', async (req, res) => {
               registro.sap_id
           );
 
+      console.log(
+        `Página ${pagina}: ${registros.length} registros válidos`
+      );
+
       const guardados =
         await guardarRegistros(
           registros
@@ -672,7 +785,15 @@ app.get('/sync-sap', async (req, res) => {
 
       totalPaginas = pagina;
 
-      if (cantidad < SAP_PAGE_SIZE) {
+      console.log(
+        `✓ Página ${pagina} procesada completamente`
+      );
+
+      // Si SAP devuelve menos del máximo,
+      // ya llegamos al final.
+      if (
+        cantidad < SAP_PAGE_SIZE
+      ) {
         break;
       }
 
@@ -684,7 +805,11 @@ app.get('/sync-sap', async (req, res) => {
       inicioProceso;
 
     console.log(
-      '✓ Sincronización terminada'
+      '==========================================='
+    );
+
+    console.log(
+      '✓ SINCRONIZACIÓN TERMINADA'
     );
 
     console.log(
@@ -697,6 +822,14 @@ app.get('/sync-sap', async (req, res) => {
 
     console.log(
       `✓ Páginas: ${totalPaginas}`
+    );
+
+    console.log(
+      `✓ Tiempo: ${tiempoMs} ms`
+    );
+
+    console.log(
+      '==========================================='
     );
 
     res.json({
@@ -722,13 +855,25 @@ app.get('/sync-sap', async (req, res) => {
       paginaSize:
         SAP_PAGE_SIZE,
 
+      lotePostgreSQL:
+        DB_BATCH_SIZE,
+
       tiempoMs
     });
 
   } catch (error) {
     console.error(
-      'Error sincronizando SAP:',
-      error
+      '==========================================='
+    );
+
+    console.error(
+      'ERROR SINCRONIZANDO SAP'
+    );
+
+    console.error(error);
+
+    console.error(
+      '==========================================='
     );
 
     res.status(500).json({
@@ -759,6 +904,9 @@ app.get('/sync-sap', async (req, res) => {
       registrosProcesados:
         totalGuardados
     });
+
+  } finally {
+    sincronizacionEnCurso = false;
   }
 });
 
@@ -767,6 +915,7 @@ app.get('/sync-sap', async (req, res) => {
 // ============================================================
 
 app.get('/facturacion', async (req, res) => {
+
   const limit =
     Math.min(
       parseInt(req.query.limit) || 50,
@@ -864,6 +1013,7 @@ app.get('/facturacion', async (req, res) => {
 app.get(
   '/dashboards/hoja-asesor',
   async (req, res) => {
+
     const inicio =
       req.query.inicio ||
       '2026-08-01';
@@ -954,6 +1104,7 @@ app.get(
 app.get(
   '/dashboards/hoja-cliente',
   async (req, res) => {
+
     const inicio =
       req.query.inicio ||
       '2026-08-01';
@@ -1045,6 +1196,7 @@ app.get(
 app.get(
   '/dashboards/labor-comercial',
   async (req, res) => {
+
     const inicio =
       req.query.inicio ||
       '2026-08-01';
@@ -1130,6 +1282,7 @@ app.get(
 app.get(
   '/dashboards/portafolio-cartera',
   async (req, res) => {
+
     const inicio =
       req.query.inicio ||
       '2026-08-01';
@@ -1215,6 +1368,7 @@ app.get(
 app.get(
   '/dashboards/planeacion-nogales',
   async (req, res) => {
+
     const inicio =
       req.query.inicio ||
       '2026-08-01';
@@ -1319,21 +1473,15 @@ async function startServer() {
         `✓ Server running on port ${PORT}`
       );
 
-      console.log(
-        '✓ GET /'
-      );
-
-      console.log(
-        '✓ GET /health'
-      );
-
-      console.log(
-        '✓ GET /sync-sap'
-      );
-
-      console.log(
-        '✓ GET /facturacion'
-      );
+      console.log('✓ GET /');
+      console.log('✓ GET /health');
+      console.log('✓ GET /sync-sap');
+      console.log('✓ GET /facturacion');
+      console.log('✓ GET /dashboards/hoja-asesor');
+      console.log('✓ GET /dashboards/hoja-cliente');
+      console.log('✓ GET /dashboards/labor-comercial');
+      console.log('✓ GET /dashboards/portafolio-cartera');
+      console.log('✓ GET /dashboards/planeacion-nogales');
     }
   );
 }
