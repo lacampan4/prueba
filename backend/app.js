@@ -451,8 +451,33 @@ app.get('/health', async (req, res) => {
 app.get(
   '/sync-status',
   (req, res) => {
+    // Nota: los campos van también en la raíz del JSON (además de
+    // dentro de "sincronizacion") porque frontend/sap-helper.js
+    // (el botón "Actualizar desde SAP") lee status.ejecutando,
+    // status.registrosProcesados, status.registrosSAP,
+    // status.paginaActual y status.estado directamente del nivel
+    // raíz. Si solo van anidados, el botón nunca detecta que la
+    // sincronización sigue corriendo.
     res.json({
       ok: true,
+
+      ejecutando:
+        syncState.ejecutando,
+
+      estado:
+        syncState.estado,
+
+      paginaActual:
+        syncState.paginaActual,
+
+      registrosSAP:
+        syncState.registrosSAP,
+
+      registrosProcesados:
+        syncState.registrosProcesados,
+
+      error:
+        syncState.error,
 
       sincronizacion: {
         ejecutando:
