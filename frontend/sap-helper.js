@@ -519,18 +519,64 @@
     }
   }
 
+  // Antes: 180 intentos * 2s = tope duro de 6 minutos, y cualquier fallo de
+  // red en un solo poll a /sync-status abortaba todo con un alert, aunque
+  // Render seguía sincronizando tranquilamente en segundo plano (por eso el
+  // usuario veía el error en el navegador mientras Render seguía
+  // consultando datos). Ahora: los fallos de red en el poll se toleran
+  // (reintentando) y solo se aborta si pasa mucho tiempo SIN PROGRESO real,
+  // no por un tope fijo de tiempo total. Así los rangos grandes (que tardan
+  // más de 6 min) ya no truncan la espera del frontend.
+  const POLL_INTERVAL_MS = 2000;
+  const MAX_CONSECUTIVE_POLL_FAILURES = 5; // ~5 fallos de red seguidos antes de rendirse
+  const MAX_MS_SIN_PROGRESO = 8 * 60 * 1000; // 8 min sin cambios en processed/page => se asume atascado
+
   async function waitForCompletion(button, inicio, fin) {
-    let attempts = 0;
-    while (attempts++ < 180) {
-      const status = await getStatus();
+    let consecutiveFailures = 0;
+    let lastProgressKey = null;
+    let lastProgressAt = Date.now();
+
+    while (true) {
+      let status;
+      try {
+        status = await getStatus();
+        consecutiveFailures = 0;
+      } catch (err) {
+        consecutiveFailures++;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_POLL_FAILURES) {
+          // Ojo: esto NO significa que la sincronización en Render haya
+          // fallado, solo que el navegador no logra consultar el estado.
+          // Render puede seguir trabajando igual.
+          throw new Error(
+            'No se pudo consultar el estado de la sincronización tras varios intentos ' +
+            '(posible problema de red). La sincronización puede seguir corriendo en el ' +
+            'servidor; espera un momento y vuelve a intentar el botón. Detalle: ' + err.message
+          );
+        }
+        setButton(button, 'SAP: reconectando (' + consecutiveFailures + '/' + MAX_CONSECUTIVE_POLL_FAILURES + ')…', true);
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+        continue;
+      }
+
       const processed = Number(status.registrosProcesados || 0);
       const total = Number(status.registrosSAP || 0);
       const page = Number(status.paginaActual || 0);
 
       if (status.ejecutando) {
+        const progressKey = processed + ':' + page;
+        if (progressKey !== lastProgressKey) {
+          lastProgressKey = progressKey;
+          lastProgressAt = Date.now();
+        } else if (Date.now() - lastProgressAt > MAX_MS_SIN_PROGRESO) {
+          throw new Error(
+            'La sincronización SAP no muestra avance desde hace varios minutos. ' +
+            'Revisa /sync-status en Render para confirmar si sigue corriendo.'
+          );
+        }
+
         const detail = total > 0 ? ' ' + processed + '/' + total : (page > 0 ? ' pág. ' + page : '');
         setButton(button, 'SAP: sincronizando' + detail + '…', true);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
         continue;
       }
 
@@ -542,7 +588,6 @@
       await refreshDataCache(inicio, fin);
       return status;
     }
-    throw new Error('La sincronización está tardando más de lo esperado. Revisa /sync-status en Render.');
   }
 
   async function updateFromSap() {
