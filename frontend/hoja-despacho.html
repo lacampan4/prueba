@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hoja de Despacho · La Campana</title><link href="favicon.png" rel="icon" type="image/png"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+
+
+<link href="css/hoja-despacho.css" rel="stylesheet"/></head>
+<body>
+<div class="wrap">
+<div class="printhead">
+<img alt="La Campana" src="assets/cf5a7452-29d1-4b8c-bd20-7b7188299d0d.png"/>
+<div>
+<div class="ph-t">HOJA DE <span>DESPACHO</span> · FACTURAS DEL DÍA</div>
+<div class="ph-s" id="printSub">—</div>
+</div>
+</div>
+<header class="noprint">
+<div class="brand">
+<img alt="La Campana" class="logo" src="assets/cf5a7452-29d1-4b8c-bd20-7b7188299d0d.png"/>
+<div>
+<h1>HOJA DE <span>DESPACHO</span></h1>
+<div class="sub">Facturas del día · asignación de vehículos · kilos entregados</div>
+</div>
+</div>
+<div class="htools"><button class="btn ghost" id="backMenuBtn" title="Volver al menu"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg> Menu</button>
+<button class="btn ghost" onclick="openGuia()">Guía de datos</button>
+<button class="btn ghost" onclick="openFlota()">Flota</button>
+<button class="btn ghost" onclick="openImport()">Importar facturas</button>
+<button class="btn" onclick="printDespacho()">
+<svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg>
+        Imprimir hoja
+      </button>
+<button class="btn" id="excelBtn" onclick="openImport()"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg> Cargar Excel</button>
+<button class="btn ghost" id="updateSapBtn" type="button"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 9"></path><path d="M20 4v5h-5"></path><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15"></path><path d="M4 20v-5h5"></path></svg> Actualizar desde SAP</button>
+</div>
+</header>
+<div class="demobar noprint" id="demobar" style="display:none">
+<b>Datos demo</b> Estás viendo facturas de ejemplo. Importa tus facturas reales de SAP con «Importar facturas».
+  </div>
+<div class="params noprint" id="params"></div>
+<div class="kpis" id="kpis"></div>
+<div class="panel">
+<div class="phead">
+<h2 id="tblTitle">Facturas del día</h2>
+<div class="hint" id="tblHint"></div>
+</div>
+<div class="tscroll"><table id="tbl"></table></div>
+<div class="foot-note noprint" id="tblFoot"></div>
+</div>
+<div class="panel">
+<div class="phead">
+<h2>Kilos entregados en el mes</h2>
+<div class="seg noprint" id="mesSeg"></div>
+<div class="hint" id="mesHint"></div>
+</div>
+<div class="metgrid" style="padding:16px">
+<div>
+<div class="phead" style="padding:0 0 10px;border:none"><h2 style="font-size:13px">Por vehículo</h2></div>
+<table id="vehTbl"></table>
+</div>
+<div>
+<div class="phead" style="padding:0 0 10px;border:none"><h2 style="font-size:13px">Por grupo de artículos</h2></div>
+<table id="grpTbl"></table>
+</div>
+</div>
+<div class="foot-note">Solo suma facturas con estado <b>entregada</b>. El grupo sale de la categoría del artículo en cada línea de la factura.</div>
+</div>
+</div>
+<!-- Import modal -->
+<div class="overlay noprint" id="impOverlay">
+<div class="modal">
+<div class="mhead"><h2>Importar facturas</h2><button class="x" onclick="closeImport()">×</button></div>
+<div class="mbody">
+<div class="cols"><b>Una fila por línea de factura.</b> Columnas esperadas:
+        <code>Factura</code> · <code>Fecha</code> · <code>Cliente</code> · <code>Dirección</code> · <code>Asesor</code> · <code>Correo</code> (opcional) ·
+        <code>Material/Código</code> · <code>Texto breve</code> · <code>Grupo</code> · <code>Cantidad</code> y/o <code>Kilos</code>.
+        Exporte de <code>VF05N</code> o query SQVI — ver Guía de datos.</div>
+<textarea id="ita" placeholder="Copia el rango en Excel (con encabezados) y pégalo aquí…"></textarea>
+<div style="display:flex;gap:10px;align-items:center;margin-top:9px">
+<button class="btn ghost" onclick="impParse()" style="padding:8px 13px">Validar datos</button>
+<div class="istatus" id="ist"></div>
+</div>
+</div>
+<div class="mfoot">
+<button class="btn ghost" onclick="resetDemoDespacho()">Volver a datos demo</button>
+<button class="btn" onclick="saveImport()">Guardar facturas</button>
+</div>
+</div>
+</div>
+<!-- Flota modal -->
+<div class="overlay noprint" id="flOverlay">
+<div class="modal sm">
+<div class="mhead"><h2>Flota de vehículos</h2><button class="x" onclick="closeFlota()">×</button></div>
+<div class="mbody">
+<div id="flList"></div>
+<div class="fladd">
+<input id="flPlaca" maxlength="8" placeholder="Placa · ABC 123" style="width:150px" type="text"/>
+<input id="flDesc" placeholder="Descripción (opcional)" style="flex:1;min-width:180px" type="text"/>
+<button class="btn" onclick="addPlaca()" style="padding:9px 14px">Agregar</button>
+</div>
+</div>
+<div class="mfoot"><button class="btn" onclick="closeFlota()">Listo</button></div>
+</div>
+</div>
+<!-- Guía de datos -->
+<div class="overlay" id="guiaOverlay">
+<div class="modal">
+<div class="mhead"><h2>Guía · Facturas SAP para la Hoja de Despacho</h2><button class="x" onclick="closeGuia()">×</button></div>
+<div class="mbody guia">
+<h3>Qué necesita este dashboard</h3>
+<p>Un exporte diario de las <b>facturas del día con sus posiciones</b> (una fila por artículo facturado), con cliente, dirección de entrega, asesor, cantidades y kilos.</p>
+<h3>Opción A — VF05N (lista de facturas)</h3>
+<ol>
+<li>Transacción <code>VF05N</code>, marca <b>Con posiciones</b>.</li>
+<li><b>Fecha de factura</b>: el día de hoy (o el rango que quieras cargar).</li>
+<li>Layout (<code>Ctrl+F8</code>) con: <b>Documento de facturación, Fecha, Solicitante (nombre), Material, Denominación, Grupo de artículos, Cantidad facturada, Peso neto</b>.</li>
+<li>Exporta: Sistema → Lista → Grabar → Fichero local → <b>Hoja de cálculo</b>.</li>
+</ol>
+<p>Si el layout no trae la dirección de entrega o el asesor, agrégalos en Excel antes de pegar (columnas «Dirección» y «Asesor»), o usa la opción B.</p>
+<h3>Opción B — SQVI / Query Z (recomendada para automatizar)</h3>
+<p>QuickView que una <code>VBRK</code> (cabecera de factura) con <code>VBRP</code> (posiciones), <code>KNA1/ADRC</code> (cliente y dirección del destinatario de mercancía) y <code>VBPA</code> (interlocutor <b>empleado responsable</b> = asesor). Campos: Factura (<code>VBELN</code>), Fecha (<code>FKDAT</code>), Cliente, Dirección, Asesor, Material, Denominación, Grupo de artículos (<code>MATKL</code> o categoría propia), Cantidad (<code>FKIMG</code>), Peso neto (<code>NTGEW</code>). Guárdalo como variante y expórtalo cada mañana en un clic.</p>
+<h3>Formato que espera el importador</h3>
+<table><tbody><tr><th>Factura</th><th>Fecha</th><th>Cliente</th><th>Dirección</th><th>Asesor</th><th>Correo</th><th>Material</th><th>Texto breve</th><th>Grupo</th><th>Cantidad</th><th>Kilos</th></tr>
+<tr><td>901234</td><td>10.07.2026</td><td>FERRETERÍA X</td><td>Cl 44 # 19-23, Valledupar</td><td>CARLOS MEJÍA</td><td>carlos@…</td><td>GAL1.10UP12192440</td><td>LAMINA GALVANIZADA…</td><td>GALVANIZADA</td><td>20</td><td>520</td></tr></tbody></table>
+<p>Los nombres de columna son flexibles. Fechas aceptadas: <code>dd.mm.aaaa</code>, <code>dd/mm/aaaa</code>, <code>aaaa-mm-dd</code>. La columna Correo es opcional: si no viene, el correo se abre sin destinatario y lo completas al enviar.</p>
+<h3>Cómo funciona el flujo</h3>
+<ul>
+<li><b>Pendiente → Asignada:</b> eliges la placa del vehículo y pulsas «Asignar». Se abre tu correo (Outlook/Gmail) con el mensaje al asesor ya redactado: factura, cliente, dirección, detalle y placa. Solo pulsas enviar.</li>
+<li><b>Asignada → Entregada:</b> cuando el vehículo regresa, marcas «Entregada». Solo las entregadas suman en las métricas de kilos del mes.</li>
+<li><b>Flota:</b> las placas se administran en el botón «Flota» y quedan guardadas en este equipo, igual que las asignaciones.</li>
+</ul>
+</div>
+<div class="mfoot">
+<button class="btn" onclick="closeGuia()">Entendido</button>
+</div>
+</div>
+</div>
+<script src="assets/bfcfd027-262f-4f41-a6a0-943fd72ecbc9.js"></script>
+<script src="assets/684a6d99-d6f2-4fb8-a0cd-e46a2ac3c44e.js"></script>
+<script src="assets/de756311-682a-4437-b982-e43b1dbefefa.js"></script>
+<script src="assets/d06e5815-5f91-46f5-a227-e32907048ffe.js"></script>
+
+<script src="js/hoja-despacho.js"></script><script src="sap-helper.js"></script></body></html>

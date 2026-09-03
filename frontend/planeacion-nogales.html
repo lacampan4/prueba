@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Planeación Nogales · La Campana</title><link href="favicon.png" rel="icon" type="image/png"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+
+
+<link href="css/planeacion-nogales.css" rel="stylesheet"/></head>
+<body>
+<div class="wrap">
+<header>
+<div class="brand">
+<img alt="La Campana" class="logo" src="assets/5f784962-eee4-4b2f-b663-e9ecdbdf137e.png"/>
+<div>
+<h1><span>PLANEACION NOGALES</span></h1>
+<div class="sub">Kilogramos vendidos por referencia · mes a mes</div>
+</div>
+</div>
+<div class="htools"><button class="btn ghost" id="backMenuBtn" title="Volver al menu"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg> Menu</button>
+<button class="btn ghost" id="exportBtn" title="Genera nogales_data.js con los meses del Excel importado en LABOR COMERCIAL">Exportar datos</button>
+<button class="btn ghost" id="printBtn">Imprimir / PDF</button>
+<button class="btn" id="excelBtn"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg> Cargar Excel</button>
+<button class="btn ghost" id="updateSapBtn" type="button"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 9"></path><path d="M20 4v5h-5"></path><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15"></path><path d="M4 20v-5h5"></path></svg> Actualizar desde SAP</button>
+</div>
+</header>
+<div class="filters">
+<div class="fl">
+<label>Grupo</label>
+<select id="fGrp"><option value="">Todos</option></select>
+</div>
+<div class="fl">
+<label>Prefijo</label>
+<select id="fPre"><option value="">Todos</option></select>
+</div>
+<div class="fl">
+<label>Recurrencia</label>
+<select id="fRec"><option value="">Todos</option><option value="1">Con movimiento cada mes</option></select>
+</div>
+<div class="fl">
+<label>Buscar</label>
+<input class="search" id="fQ" placeholder="código o descripción…" type="text"/>
+</div>
+<div class="fl">
+<label> </label>
+<button class="btn ghost" id="clrBtn" style="padding:8px 14px">Limpiar</button>
+</div>
+<div class="fcount" id="fcount" style="margin-left:auto"></div>
+</div>
+<div class="kpis" id="kpis"></div>
+<div class="panel">
+<div class="phead">
+<h2>Kilogramos por referencia</h2>
+<div class="hint" id="rango"></div>
+</div>
+<div class="tblwrap">
+<table>
+<thead><tr id="thead"></tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+</div>
+</div>
+</div>
+<script src="assets/6fde1f92-0165-4f7d-8822-89efd246021b.js"></script>
+<script src="assets/13f7a308-0a7f-4819-a02b-3561ba2f5efa.js"></script>
+
+
+<div class="modal noprint" id="lcExcelModal" style="display:none;align-items:center;justify-content:center">
+<div class="box" style="max-width:760px;width:min(760px,92vw);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+<div class="mh" style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #ddd"><h3 id="lcExcelTitle" style="margin:0"></h3><button class="x" id="lcExcelClose" type="button">×</button></div>
+<div class="mb" style="padding:22px"><p id="lcExcelDesc" style="margin:0 0 16px;color:#666;line-height:1.55"></p>
+<div class="drop" id="lcExcelDrop" style="border:2px dashed #ccd2d8;border-radius:14px;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;text-align:center;color:#666"><div style="font-size:32px">↑</div><div>Arrastra tu archivo aquí o <b>haz clic para elegir</b></div><small>Excel .xlsx, .xls o .csv</small></div>
+<input accept=".xlsx,.xls,.csv" id="lcExcelInput" style="display:none" type="file"/><div id="lcExcelResult" style="margin-top:14px;font-size:13px;color:#666"></div></div></div></div>
+
+<script src="js/planeacion-nogales.js"></script><script src="sap-helper.js"></script></body></html>

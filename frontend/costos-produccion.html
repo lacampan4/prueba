@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Costos de Producción · La Campana</title><link href="favicon.png" rel="icon" type="image/png"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+
+
+<link href="css/costos-produccion.css" rel="stylesheet"/></head>
+<body>
+<div class="loading" id="loading"><div class="spin"></div><p>Cargando costos de producción…</p></div>
+<div class="wrap">
+<header>
+<div class="brand">
+<img alt="La Campana" class="logo" src="assets/costos-e154448b6016d90a.png"/>
+<div><h1>COSTOS DE <span>PRODUCCIÓN</span></h1><div class="sub" id="subt">La Campana</div></div>
+</div>
+<div class="htools noprint"><button class="btn ghost" id="backMenuBtn" title="Volver al menu"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg> Menu</button><button class="btn ghost" id="printBtn"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-3a2 2 0 012-2h16a2 2 0 012 2v3a2 2 0 01-2 2h-2M6 14h12v8H6z"></path></svg> Exportar PDF</button>
+<button class="btn ghost" id="tvBtn"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><rect height="13" rx="2" width="20" x="2" y="4"></rect><path d="M8 21h8M12 17v4"></path></svg> Modo TV</button>
+<button class="btn" id="excelBtn"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path></svg> Cargar Excel</button>
+<button class="btn ghost" id="updateSapBtn" type="button"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.7-5.7L20 9"></path><path d="M20 4v5h-5"></path><path d="M20 12a8 8 0 0 1-13.7 5.7L4 15"></path><path d="M4 20v-5h5"></path></svg> Actualizar desde SAP</button>
+</div>
+</header>
+<button class="tvexit" id="tvExit">Salir de modo TV</button>
+<div class="controls noprint">
+<div class="fl"><label>Mes</label><select id="cMonth"></select></div>
+<div class="fl"><label>Comparar con</label><select id="cCmp"></select></div>
+<div class="spacer"></div>
+<div class="cbtns">
+<button class="cbtn pri" id="btnEdit">✎ Editar mes</button>
+<button class="cbtn" id="btnNew">+ Nuevo mes</button>
+<button class="cbtn pri" id="btnSave">✓ Guardar</button>
+<button class="cbtn" id="btnCancel">Cancelar</button>
+<button class="cbtn warn" id="btnReset">Restablecer</button>
+</div>
+<div class="edit-hint" id="editHint" style="display:none">Modo edición · ajusta cualquier valor de la tabla de detalle y de los rubros base; los totales y el costo/kg se recalculan al instante. Pulsa <b>Guardar</b> para conservar los cambios de este mes.</div>
+</div>
+<div class="kpis" id="kpis"></div>
+<div class="panel"><div class="phead"><h2>Costo por kilo · por línea de producción</h2><span class="hint" id="ckgHint"></span></div>
+<div class="pbody" id="ckgBox"></div></div>
+<div class="grid2b">
+<div class="panel"><div class="phead"><h2>Estructura de costos del mes</h2><span class="hint">rubros agregados</span></div>
+<div class="pbody" id="estrBox"></div></div>
+<div class="panel"><div class="phead"><h2>Rubros base · costo unitario</h2><span class="hint">prorrateo por consumo</span></div>
+<div class="pbody" id="drvBox"></div></div>
+</div>
+<div class="panel"><div class="phead"><h2>Utilización de capacidad · por línea</h2><span class="hint" id="capHint"></span></div>
+<div class="pbody" id="capBox"></div></div>
+<div class="panel" id="cmpPanel"><div class="phead"><h2>Variación de costo/kg entre meses</h2><span class="hint" id="cmpHint"></span></div>
+<div class="pbody" id="cmpBox"></div></div>
+<div class="panel"><div class="phead"><h2>Detalle de costos por línea</h2><span class="hint">$ por rubro · totales al pie</span></div>
+<div class="tscroll" id="detBox"></div></div>
+<div class="foot-note">La Campana · Costos de producción · Costo por kilo = costo total de la línea ÷ kilos producidos. Los rubros base (administración, energía, acueducto y sueldos) se prorratean por consumo. Fuente: Plantilla Costos (Mayo–Junio 2026). Usa <b>Editar mes</b> para actualizar cifras o <b>Nuevo mes</b> para cargar un periodo. Los cambios se guardan en este navegador.</div>
+</div>
+<div id="flash"></div>
+<div id="twk">
+<div class="th"><b>Ajustes</b><button id="twkX" title="Cerrar">×</button></div>
+<div class="tb">
+<div class="tsec">Identidad de acento</div><div class="sw" id="twkAcc"></div>
+<div class="tsec">Densidad</div><div class="seg" id="twkDens"></div>
+<div class="tsec">Superficie</div><div class="seg" id="twkMood"></div>
+</div>
+</div>
+<script src="assets/costos-0397da119a858d33.js"></script>
+<script src="assets/costos-fef6b4625902ff2d.js"></script>
+
+
+
+<div class="modal noprint" id="lcExcelModal" style="display:none;align-items:center;justify-content:center"><div class="box" style="max-width:760px;width:min(760px,92vw);background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.25)"><div class="mh" style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid #ddd"><h3 id="lcExcelTitle" style="margin:0">Actualizar costos desde Excel</h3><button class="x" id="lcExcelClose" type="button">×</button></div><div class="mb" style="padding:22px"><p style="margin:0 0 16px;color:#666;line-height:1.55">Carga el Excel correspondiente a costos y producción de este módulo.</p><div class="drop" id="lcExcelDrop" style="border:2px dashed #ccd2d8;border-radius:14px;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;text-align:center;color:#666"><div style="font-size:32px">↑</div><div>Arrastra tu archivo aquí o <b>haz clic para elegir</b></div><small>Excel .xlsx, .xls o .csv</small></div><input accept=".xlsx,.xls,.csv" id="lcExcelInput" style="display:none" type="file"/><div id="lcExcelResult" style="margin-top:14px;font-size:13px;color:#666"></div></div></div></div>
+<script src="js/costos-produccion.js"></script></body>
+</html>
+<script src="sap-helper.js"></script>
