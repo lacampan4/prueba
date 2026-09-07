@@ -45,7 +45,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   // Lógica auxiliar de la aplicación.
   window.addEventListener('error', function(e) {
     // Preparación de elementos y scripts necesarios para mostrar la página.
-    // Preparación de elementos y scripts necesarios para mostrar la página.
     if (!e.message && !e.error && e.target && e.target !== window) {
       console.warn('[bundle] resource failed to load:',
         e.target.tagName, String(e.target.src || e.target.href || ''));
@@ -72,11 +71,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const manifest = JSON.parse(manifestEl.textContent);
     let template = JSON.parse(templateEl.textContent);
 
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
+  
     // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
     // Funciones relacionadas con la carga y lectura de archivos.
     // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
@@ -86,44 +81,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     const pageSet = new Set(pageOrder);
     const pageTexts = {};
 
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Lógica auxiliar de la aplicación.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Lógica auxiliar de la aplicación.
-    // Lógica auxiliar de la aplicación.
-    // Lógica auxiliar de la aplicación.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Lógica auxiliar de la aplicación.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Lógica auxiliar de la aplicación.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Funciones relacionadas con la carga y lectura de archivos.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Lógica auxiliar de la aplicación.
-    // Lógica auxiliar de la aplicación.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Lógica auxiliar de la aplicación.
-    // Lógica auxiliar de la aplicación.
     const OWN_TARGET = /^https?:[/][/]/.test(window.origin || '')
       ? window.origin
       : '*';
     function trustedOrigin(e) {
       if (e.origin === window.origin) return true; // https chains; opaque==opaque
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // Lógica auxiliar de la aplicación.
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // separately.
+    
       return (
         (e.origin === 'null' &&
           (window.origin === 'file://' ||
@@ -131,10 +94,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         (/^file:/.test(e.origin) && window.origin === 'null')
       );
     }
-    // Lógica auxiliar de la aplicación.
-    // Lógica auxiliar de la aplicación.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Lógica auxiliar de la aplicación.
     const isPageRoot = pageOrder.length > 0;
     const blobUrls = {};
     const resourceBlobs = {};
@@ -169,12 +128,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.addEventListener('message', function (e) {
       const d = e.data;
       if (!d || typeof d !== 'object' || !e.source) return;
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // Lógica auxiliar de la aplicación.
-      // Lógica auxiliar de la aplicación.
+  
       if (!trustedOrigin(e)) return;
       if (typeof d.__bundler_need === 'string' && UUID_SHAPE.test(d.__bundler_need)) {
         // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
@@ -191,9 +145,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           if (waiting.indexOf(e.source) < 0) waiting.push(e.source);
           return;
         }
-        // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-        // Lógica auxiliar de la aplicación.
-        // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
+    
         if (Object.keys(pendingRelays).length >= 128) return;
         pendingRelays[uuid] = [e.source];
         window.parent.postMessage({ __bundler_need: uuid }, OWN_TARGET);
@@ -202,12 +154,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         UUID_SHAPE.test(d.__bundler_page) &&
         typeof d.__bundler_text === 'string'
       ) {
-        // Lógica auxiliar de la aplicación.
-        // Lógica auxiliar de la aplicación.
-        // Lógica auxiliar de la aplicación.
-        // Lógica auxiliar de la aplicación.
-        // Lógica auxiliar de la aplicación.
-        // Lógica auxiliar de la aplicación.
+      
         if (e.source !== window.parent || window.parent === window) return;
         if (!(d.__bundler_page in pendingFrames) && !(d.__bundler_page in pendingRelays)) return;
         deliverPage(d.__bundler_page, d.__bundler_text);
@@ -276,30 +223,22 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (blobUrls[entry.uuid]) resourceMap[entry.id] = blobUrls[entry.uuid];
     }
 
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
+  
     window.__resourceBlobs = resourceBlobs;
 
     setStatus('Rendering...');
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
+ 
     for (const uuid of uuids) {
       if (pageSet.has(uuid)) continue;
       template = template.split(uuid).join(blobUrls[uuid]);
     }
 
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Lógica auxiliar de la aplicación.
     template = template.replace(/\s+integrity="[^"]*"/gi, '').replace(/\s+crossorigin="[^"]*"/gi, '');
 
     const resourceScript = '<script>window.__resources = ' +
       JSON.stringify(resourceMap).replace(/<\//g, '<\\/') +
       ';</' + 'script>';
     // Preparación de elementos y scripts necesarios para mostrar la página.
-    // Lógica auxiliar de la aplicación.
-    // Lógica auxiliar de la aplicación.
-    // Lógica auxiliar de la aplicación.
     // replace() keeps us clear of $-pattern substitution in resourceScript.
     const headOpen = template.match(/<head[^>]*>/i);
     if (headOpen) {
@@ -307,18 +246,10 @@ document.addEventListener('DOMContentLoaded', async function() {
       template = template.slice(0, i) + resourceScript + template.slice(i);
     }
 
-    // Preparación de elementos y scripts necesarios para mostrar la página.
-    // Lógica auxiliar de la aplicación.
-    // Preparación de elementos y scripts necesarios para mostrar la página.
-    // Lógica auxiliar de la aplicación.
+    
     const doc = new DOMParser().parseFromString(template, 'text/html');
     document.documentElement.replaceWith(doc.documentElement);
 
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-    // degraded state as a refused embed.
     {
       const MARKER = /^about:blank#([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(#.*)?$/;
       const needed = [];
@@ -344,10 +275,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       const s = document.createElement('script');
       for (const a of old.attributes) s.setAttribute(a.name, a.value);
       s.textContent = old.textContent;
-      // Preparación de elementos y scripts necesarios para mostrar la página.
-      // Compatibilidad interna para manejar documentos incrustados, marcos y mensajes entre páginas.
-      // Preparación de elementos y scripts necesarios para mostrar la página.
-      // Preparación de elementos y scripts necesarios para mostrar la página.
+     
       if ((s.type === 'text/babel' || s.type === 'text/jsx') && s.src) {
         const pre = resourceBlobs[s.src.split('#')[0]];
         s.textContent = pre ? await pre.text() : await (await fetch(s.src)).text();
@@ -357,8 +285,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       old.replaceWith(s);
       if (p) await p;
     }
-    // Lógica auxiliar de la aplicación.
-    // Lógica auxiliar de la aplicación.
+    
     if (window.Babel && typeof window.Babel.transformScriptTags === 'function') {
       window.Babel.transformScriptTags();
     }
