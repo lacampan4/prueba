@@ -75,7 +75,7 @@ function verificarTokenAuth(token) {
 // ============================================================
 // CONFIGURACIÓN SAP
 // ============================================================
-// SAP es la ÚNICA fuente de datos. Ya no hay Neon/PostgreSQL: en vez de
+// SAP es la ÚNICA fuente de datos.en vez de
 // sincronizar filas hacia una base de datos, este backend consulta SAP
 // directamente en cada request y guarda el resultado en memoria (RAM del
 // proceso de Render) durante un rato, para no golpear SAP en cada clic.
@@ -178,7 +178,7 @@ app.get('/auth/me', (req, res) => {
 });
 
 // ============================================================
-// CACHÉ EN MEMORIA (reemplaza a Neon/PostgreSQL)
+// CACHÉ EN MEMORIA
 // ============================================================
 // Cada entrada: clave "inicio|fin" -> { filas, dataset, creadoEn }
 // - filas: filas crudas ya mapeadas desde SAP (mismo formato que antes
@@ -187,8 +187,7 @@ app.get('/auth/me', (req, res) => {
 //   perezosamente la primera vez que se pide /dataset para ese rango.
 const filasCache = new Map();
 
-// Evita pedirle a SAP el mismo rango dos veces en paralelo (por ejemplo,
-// si /dataset y /facturacion llegan casi al tiempo para el mismo rango).
+//
 const descargasEnCurso = new Map();
 
 function claveRango(inicio, fin) {
