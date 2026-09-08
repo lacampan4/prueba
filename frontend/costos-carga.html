@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cargando costos de producción · La Campana</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;min-height:100%;font-family:Arial,Helvetica,sans-serif;background:#f4f5f7;color:#222}
+  body{display:flex;align-items:center;justify-content:center;min-height:100vh}
+  .card{width:min(520px,calc(100vw - 36px));background:#fff;border-radius:18px;padding:42px 36px;box-shadow:0 14px 45px rgba(0,0,0,.10);text-align:center}
+  .spinner{width:58px;height:58px;border:5px solid #ddd;border-top-color:#e10600;border-radius:50%;margin:0 auto 24px;animation:spin 1s linear infinite}
+  h1{font-size:22px;margin:0 0 10px}
+  p{margin:8px 0;color:#666;font-size:14px;line-height:1.5}
+  #status{font-family:monospace;color:#333;margin-top:18px;min-height:22px}
+  .bar{height:8px;background:#eee;border-radius:999px;overflow:hidden;margin-top:20px}
+  #bar{height:100%;width:4%;background:#e10600;border-radius:999px;transition:width .25s}
+  .error{display:none;margin-top:20px;padding:14px;border-radius:10px;background:#fff1f1;color:#a40000;text-align:left;font-size:13px}
+  .actions{display:none;margin-top:20px;gap:10px;justify-content:center}
+  button{border:0;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer}
+  .primary{background:#e10600;color:white}.secondary{background:#eee;color:#222}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="spinner" id="spinner"></div>
+  <h1>Cargando costos de producción</h1>
+  <p>Estamos preparando los datos desde SAP. Esta pantalla es independiente del dashboard para evitar conflictos de carga.</p>
+  <div id="status">Conectando con SAP…</div>
+  <div class="bar"><div id="bar"></div></div>
+  <div class="error" id="error"></div>
+  <div class="actions" id="actions">
+    <button class="primary" onclick="location.href='costos-produccion.html'">Abrir costos</button>
+    <button class="secondary" onclick="location.reload()">Reintentar</button>
+  </div>
+</div>
+<script>
+(function(){
+  'use strict';
+  const API_BASE=(window.LC_API_BASE||'https://prueba-d9ro.onrender.com').replace(/\/$/,'');
+  const PAGE_SIZE=1000;
+  const status=document.getElementById('status');
+  const bar=document.getElementById('bar');
+  const error=document.getElementById('error');
+  const actions=document.getElementById('actions');
+  const spinner=document.getElementById('spinner');
+  function setStatus(s){status.textContent=s;}
+  function getRange(){
+    try{
+      const a=localStorage.getItem('LC_SAP_RANGE_INICIO');
+      const b=localStorage.getItem('LC_SAP_RANGE_FIN');
+      if(a&&b)return a<=b?{inicio:a,fin:b}:{inicio:b,fin:a};
+    }catch(_){ }
+    const now=new Date();
+    const fin=now.toISOString().slice(0,10);
+    const start=new Date(now);start.setDate(start.getDate()-30);
+    return {inicio:start.toISOString().slice(0,10),fin};
+  }
+  async function fetchAll(inicio,fin){
+    const all=[];let offset=0;let total=Infinity;
+    while(offset<total){
+      const url=API_BASE+'/facturacion?fecha_inicio='+encodeURIComponent(inicio)+'&fecha_fin='+encodeURIComponent(fin)+'&limit='+PAGE_SIZE+'&offset='+offset;
+      const r=await fetch(url,{cache:'no-store'});
+      if(!r.ok)throw new Error('SAP respondió '+r.status+'.');
+      const body=await r.json();
+      if(!body.ok)throw new Error(body.error||'SAP no devolvió datos válidos.');
+      const data=Array.isArray(body.data)?body.data:[];
+      total=Number(body.total||data.length);all.push(...data);offset+=data.length;
+      const pct=total?Math.min(96,Math.max(5,all.length/total*96)):90;
+      bar.style.width=pct+'%';
+      setStatus('Descargando '+all.length.toLocaleString('es-CO')+' de '+total.toLocaleString('es-CO')+' registros…');
+      if(!data.length)break;
+    }
+    return all;
+  }
+  async function run(){
+    try{
+      const range=getRange();
+      setStatus('Consultando SAP: '+range.inicio+' → '+range.fin);
+      const rows=await fetchAll(range.inicio,range.fin);
+      localStorage.setItem('LC_COSTOS_DATA',JSON.stringify({inicio:range.inicio,fin:range.fin,updatedAt:new Date().toISOString(),rows:rows}));
+      bar.style.width='100%';
+      setStatus('Datos listos. Abriendo costos de producción…');
+      setTimeout(function(){location.replace('costos-produccion.html');},250);
+    }catch(e){
+      console.error('[COSTOS-CARGA]',e);
+      spinner.style.display='none';
+      setStatus('No fue posible completar la carga.');
+      error.style.display='block';
+      error.textContent=e.message||String(e);
+      actions.style.display='flex';
+    }
+  }
+  run();
+})();
+</script>
+</body>
+</html>
