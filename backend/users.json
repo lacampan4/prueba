@@ -1,0 +1,196 @@
+[
+  {
+    "id": "2bbdc622494b31eb",
+    "username": "admin1",
+    "nombre": "Administrador Principal",
+    "rol": "admin",
+    "password_hash": "6521f5ee2d0cb9a9098776d6299c3a14:02a01f5931553b30f0773aaf837bbaccbf5f090e64f7598c2415cca752d91afa4a820013d5708e936ef5c65c9b842d194d8034fa4207c42de9349138b9dddaef",
+    "permisos": [
+      "panorama-produccion",
+      "panorama-comercial",
+      "hoja-asesor",
+      "hoja-despacho",
+      "hoja-ruta-cliente",
+      "hoja-sede",
+      "panorama-produccion-diaria",
+      "panorama-portafolio",
+      "planeacion-nogales",
+      "costos-produccion",
+      "analisis-inventario",
+      "panorama-compras",
+      "usuarios"
+    ],
+    "activo": true
+  },
+  {
+    "id": "46ef786a1968aed6",
+    "username": "admin2",
+    "nombre": "Administrador Prueba",
+    "rol": "admin",
+    "password_hash": "eb9b6306c22250d6246d1a62d59fd2a7:3d819b207fc6f0b6d55ca1a53461220bc1d56e5dd2b8ba4813c36489243694279392790d4ce43458eec1a6ba97294d597a3fa86a466e9c9ef81ce677b3be0938",
+    "permisos": [
+      "panorama-produccion",
+      "panorama-comercial",
+      "hoja-asesor",
+      "hoja-despacho",
+      "hoja-ruta-cliente",
+      "hoja-sede",
+      "panorama-produccion-diaria",
+      "panorama-portafolio",
+      "planeacion-nogales",
+      "costos-produccion",
+      "analisis-inventario",
+      "panorama-compras",
+      "usuarios"
+    ],
+    "activo": true
+  },
+  {
+    "id": "eb4645af65fa88b2",
+    "username": "gerencia1",
+    "nombre": "Laura Gerencia",
+    "rol": "gerencia",
+    "password_hash": "a9b3ce5ffdb64726da2e441265b040df:e9b390c8a0342a87a93479b4e0cf80c00c5b3fd6ececb64d1f5082150ded5afee1d35e24e9b4e634ac41f06369ec7f6f137c1c76b36af3d525653864da3e20b7",
+    "permisos": [
+      "panorama-produccion",
+      "panorama-comercial",
+      "hoja-asesor",
+      "hoja-despacho",
+      "hoja-ruta-cliente",
+      "hoja-sede",
+      "panorama-produccion-diaria",
+      "panorama-portafolio",
+      "planeacion-nogales",
+      "costos-produccion",
+      "analisis-inventario",
+      "panorama-compras"
+    ],
+    "activo": true
+  },
+  {
+    "id": "c49ed5c7e1ff3e2c",
+    "username": "gerencia2",
+    "nombre": "Carlos Gerencia",
+    "rol": "gerencia",
+    "password_hash": "b213f81d047e361600f539e2eda70806:98cadcccd7eedff828485bec3fb643f1711bee3eaf7ff9ffd60d33d0d94174dcb7b4c07a8d4bf04db585666f9cd1cbea719516f492aa53ce4493cc6a8b85578c",
+    "permisos": [
+      "panorama-produccion",
+      "panorama-comercial",
+      "hoja-asesor",
+      "hoja-despacho",
+      "hoja-ruta-cliente",
+      "hoja-sede",
+      "panorama-produccion-diaria",
+      "panorama-portafolio",
+      "planeacion-nogales",
+      "costos-produccion",
+      "analisis-inventario",
+      "panorama-compras"
+    ],
+    "activo": true
+  },
+  {
+    "id": "3d1fe25715783aca",
+    "username": "gerencia3",
+    "nombre": "Ana Gerencia",
+    "rol": "gerencia",
+    "password_hash": "61e63a957d3efa9f99d22607c926a869:722edaca457677c82038d6764456ebb4e534c7609031c3ecaf85bde7a1a542c98df9c47b9e25e017c1ec051a638d44ff653f1854961b350b251e1e2966c06ef3",
+    "permisos": [
+      "panorama-produccion",
+      "panorama-comercial",
+      "hoja-asesor",
+      "hoja-despacho",
+      "hoja-ruta-cliente",
+      "hoja-sede",
+      "panorama-produccion-diaria",
+      "panorama-portafolio",
+      "planeacion-nogales",
+      "costos-produccion",
+      "analisis-inventario",
+      "panorama-compras"
+    ],
+    "activo": true
+  },
+  {
+    "id": "8dd255300108eea6",
+    "username": "comercio1",
+    "nombre": "Juan Comercio",
+    "rol": "comercio",
+    "password_hash": "494f09ecc4cd368daacb6c4a2ac07cb9:03a9100f237631475ccbfbe32da777e1fda4039c624584f56b57723f0e786a0dfae69ec0d9fdbfcd6a7c705fa60fddb75f80ced1e7e8a2b813b648e198c1edbb",
+    "permisos": [
+      "panorama-comercial",
+      "hoja-asesor",
+      "hoja-ruta-cliente",
+      "hoja-sede",
+      "panorama-portafolio",
+      "panorama-compras"
+    ],
+    "activo": true
+  },
+  {
+    "id": "2dc8cd5bad54423a",
+    "username": "comercio2",
+    "nombre": "Maria Comercio",
+    "rol": "comercio",
+    "password_hash": "f4bc8ffefce01853861df0de7567fc48:fc1812b70eeb92df034d65927bfaf4d7386a7cbc36ec26f1cb4901df3be997189548ae2a771fba95ea09f650b083221c84b7ec97938a1aba4fc3b98f5b54a26b",
+    "permisos": [
+      "panorama-comercial",
+      "hoja-asesor",
+      "hoja-ruta-cliente",
+      "hoja-sede",
+      "panorama-portafolio",
+      "panorama-compras"
+    ],
+    "activo": true
+  },
+  {
+    "id": "7d158f622646aa65",
+    "username": "comercio3",
+    "nombre": "Pedro Comercio",
+    "rol": "comercio",
+    "password_hash": "749b1928691ddb180840167f820c67d7:b2bcef6a58c24cd57a467eba86d2f878f30f9252e200a17fb5dc8cf5eef403d403ab6a1d7d8eefcc6a47da8f6dd8cfdcd8a90db82edd5efe086c1700067d1d5f",
+    "permisos": [
+      "panorama-comercial",
+      "hoja-asesor",
+      "hoja-ruta-cliente",
+      "hoja-sede",
+      "panorama-portafolio",
+      "panorama-compras"
+    ],
+    "activo": true
+  },
+  {
+    "id": "d7dbe74c80453352",
+    "username": "produccion1",
+    "nombre": "Sofia Produccion",
+    "rol": "produccion",
+    "password_hash": "ab1318c7e462d22b36cfeb25e60c15a6:c9796bf77b1a40f62a1727e1df7d7b2a6adbbde817404384620fe1c19204768579581b12b146b3edc94eb91271b423c6cbd8fd70dc73e1826f718a1c2fcc2f2d",
+    "permisos": [
+      "panorama-produccion",
+      "hoja-despacho",
+      "hoja-sede",
+      "panorama-produccion-diaria",
+      "planeacion-nogales",
+      "costos-produccion",
+      "analisis-inventario"
+    ],
+    "activo": true
+  },
+  {
+    "id": "5c89e24f0c05faa2",
+    "username": "produccion2",
+    "nombre": "Andres Produccion",
+    "rol": "produccion",
+    "password_hash": "a7144184f7a30e348490060adad8334c:15389a6631ca70f3aa1b3af2e76994c81e96b972236eb52453a75be782c608497c2f1b0d9d3432930048d528fd020d255422fe17b6e7b05335fbd440434f9183",
+    "permisos": [
+      "panorama-produccion",
+      "hoja-despacho",
+      "hoja-sede",
+      "panorama-produccion-diaria",
+      "planeacion-nogales",
+      "costos-produccion",
+      "analisis-inventario"
+    ],
+    "activo": true
+  }
+]
