@@ -559,7 +559,74 @@ app.get('/sync-status', requiereAuth, (req, res) => {
 // DIAGNOSTICO TEMPORAL DE CONEXION TLS CON SAP
 // No imprime usuario, contraseña ni DATABASE_URL.
 // ============================================================
+// ============================================================
+// LIMITADOR DE CONCURRENCIA + REINTENTOS PARA SAP
+// ============================================================
+// Problema real observado: si dos usuarios consultan rangos de fechas
+// DISTINTOS casi al mismo tiempo (p. ej. uno pide jul-ago y otro pide
+// may-sep), iniciarDescarga() solo evita duplicar el MISMO rango, pero
+// deja que ambas descargas golpeen el servicio SAP (OData on-prem) al
+// mismo tiempo. Ese servicio on-prem no tolera bien demasiadas
+// peticiones concurrentes: alguna se queda "cargando" y termina
+// fallando con "no se pudo consultar los datos".
+//
+// En vez de forzar TODO a una sola llamada a la vez (lo que penaliza a
+// varios usuarios trabajando juntos), se permite un pequeño número de
+// llamadas simultáneas a SAP (SAP_MAX_CONCURRENCIA, por defecto 2) y,
+// si una llamada falla, se reintenta automáticamente un par de veces
+// antes de devolver el error al usuario. Así varios usuarios pueden
+// consultar rangos distintos "al mismo tiempo" sin que una colisión
+// puntual con SAP se traduzca en un error visible.
+const SAP_MAX_CONCURRENCIA = Math.max(1, parseInt(process.env.SAP_MAX_CONCURRENCIA, 10) || 2);
+const SAP_MAX_REINTENTOS = Math.max(0, parseInt(process.env.SAP_MAX_REINTENTOS, 10) || 2);
+const SAP_ESPERA_REINTENTO_MS = Math.max(0, parseInt(process.env.SAP_ESPERA_REINTENTO_MS, 10) || 1500);
+
+let sapEnCurso = 0;
+const colaEsperaSAP = [];
+
+function liberarTurnoSAP() {
+  sapEnCurso--;
+  const siguiente = colaEsperaSAP.shift();
+  if (siguiente) siguiente();
+}
+
+function tomarTurnoSAP() {
+  if (sapEnCurso < SAP_MAX_CONCURRENCIA) {
+    sapEnCurso++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    colaEsperaSAP.push(() => {
+      sapEnCurso++;
+      resolve();
+    });
+  });
+}
+
+function esperar(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function consultarSAPPagina(inicio, fin, skip, top) {
+  await tomarTurnoSAP();
+  try {
+    let intento = 0;
+    while (true) {
+      try {
+        return await consultarSAPPaginaInterna(inicio, fin, skip, top);
+      } catch (error) {
+        intento++;
+        if (intento > SAP_MAX_REINTENTOS) throw error;
+        console.warn(`⚠ Falló consulta SAP (${inicio}→${fin}, skip=${skip}). Reintento ${intento}/${SAP_MAX_REINTENTOS} en ${SAP_ESPERA_REINTENTO_MS}ms. Motivo: ${error.message}`);
+        await esperar(SAP_ESPERA_REINTENTO_MS);
+      }
+    }
+  } finally {
+    liberarTurnoSAP();
+  }
+}
+
+async function consultarSAPPaginaInterna(inicio, fin, skip, top) {
   // Usamos un rango semiabierto [inicio, fin+1 día) para no perder
   // registros del último día cuando SAP guarda la fecha como datetime.
   const finExclusivo = new Date(`${fin}T00:00:00Z`);
