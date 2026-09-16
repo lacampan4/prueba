@@ -327,8 +327,11 @@ document.addEventListener('click', () => {
 
 function pintarUsuario(data){
   const usuario = data?.usuario || data?.user || data?.data || data || {};
-  const rol = usuario.rol || usuario.role || usuario.perfil || 'Administrador';
-  const etiqueta = String(rol).trim() || 'Administrador';
+  // Antes esta función mostraba el ROL (ej. "admin") en vez del usuario.
+  // Se prioriza el nombre visible y, si no hay, el usuario de acceso —
+  // el rol queda solo como último recurso si tampoco hay ninguno de los dos.
+  const rol = usuario.rol || usuario.role || usuario.perfil || 'Usuario';
+  const etiqueta = String(usuario.nombre || usuario.username || rol).trim() || 'Usuario';
 
   document.getElementById('userName').textContent = etiqueta;
   document.getElementById('userAvatar').textContent =
@@ -408,3 +411,4 @@ cargar();
 </script>
 </body>
 </html>
+
