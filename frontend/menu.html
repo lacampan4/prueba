@@ -407,6 +407,70 @@ async function cargar(){
  }catch(e){console.error(e);}
 }
 cargar();
+</script>
+<script id="session-watch">
+// menu.html no carga auth-guard.js (a propósito: la lista de permisos
+// por página no incluye "menu", y hacerlo causaría un redirect en
+// bucle para usuarios no-admin). Este bloque agrega solo la vigilancia
+// de "otro dispositivo inició sesión" (SSE en tiempo real + polling de
+// respaldo), igual que en las demás páginas, sin tocar los permisos.
+(function(){
+  const TOKEN_KEY='panorama_access_token';
+  const API_BASE='https://prueba-d9ro.onrender.com/api';
+  let sesionExpulsada=false, sse=null;
+  function overlayVigilancia(){
+    let overlay=document.getElementById('otroDispositivoOverlay');
+    if(!overlay){
+      overlay=document.createElement('div');
+      overlay.id='otroDispositivoOverlay';
+      Object.assign(overlay.style,{position:'fixed',inset:'0',zIndex:'2147483647',display:'none',placeItems:'center',background:'rgba(0,0,0,.48)',backdropFilter:'blur(3px)'});
+      document.documentElement.appendChild(overlay);
+    }
+    return overlay;
+  }
+  function mostrarSesionExpulsada(mensaje){
+    if(sesionExpulsada) return;
+    sesionExpulsada=true;
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem('panorama_usuario');
+    if(sse){ try{ sse.close(); }catch(e){} }
+    const overlay=overlayVigilancia();
+    overlay.style.display='grid';
+    overlay.innerHTML='<div style="font:600 15px Inter,Arial,sans-serif;color:#222;text-align:center;max-width:440px;width:calc(100% - 40px);padding:30px;background:#fff;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.35)"><div style="font-size:42px;margin-bottom:12px">⚠️</div><div style="font-size:21px;margin-bottom:10px">Otro dispositivo inició sesión</div><div style="font-weight:400;line-height:1.5;margin-bottom:22px">'+(mensaje||'Tu sesión fue cerrada porque este usuario inició sesión en otro dispositivo. Debes volver a iniciar sesión.')+'</div><button id="volverLoginVigilancia" style="background:#c9151e;color:#fff;border:0;border-radius:10px;padding:12px 22px;font-weight:800;cursor:pointer">VOLVER A INICIAR SESIÓN</button></div>';
+    document.getElementById('volverLoginVigilancia').addEventListener('click',()=>location.replace('index.html'));
+    try{ history.pushState({lcSesionExpulsada:true},'',location.href); history.pushState({lcSesionExpulsada:true},'',location.href); }catch(e){}
+  }
+  window.addEventListener('popstate', function(){ if(sesionExpulsada){ try{ history.pushState({lcSesionExpulsada:true},'',location.href); }catch(e){} } });
+  window.addEventListener('beforeunload', function(e){ if(sesionExpulsada){ e.preventDefault(); e.returnValue=''; } });
+
+  async function comprobarSesion(){
+    if(sesionExpulsada) return;
+    const token=sessionStorage.getItem(TOKEN_KEY);
+    if(!token) return;
+    try{
+      const r=await fetch(API_BASE+'/auth/me',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok && (d.otroDispositivo || d.sesionExpirada)) mostrarSesionExpulsada(d.message||d.mensaje);
+    }catch(e){}
+  }
+  setInterval(comprobarSesion,1000);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') comprobarSesion(); });
+  window.addEventListener('focus', comprobarSesion);
+  window.addEventListener('pageshow', comprobarSesion);
+
+  function conectarSSE(token){
+    if(!token || !window.EventSource) return;
+    try{
+      sse=new EventSource(API_BASE+'/auth/sesion-stream?token='+encodeURIComponent(token));
+      sse.addEventListener('otroDispositivo', function(ev){
+        let d={}; try{ d=JSON.parse(ev.data); }catch(e){}
+        mostrarSesionExpulsada(d.message||d.mensaje);
+        if(sse) sse.close();
+      });
+    }catch(e){}
+  }
+  const tokenInicial=sessionStorage.getItem(TOKEN_KEY);
+  if(tokenInicial) conectarSSE(tokenInicial);
 })();
 </script>
 </body>
