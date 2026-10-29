@@ -6,7 +6,7 @@
    Producción, Costos e Inventario mantienen su propia carga, independiente. */
 (function(){
 'use strict';
-const DUENO='Panorama Comercial.html';
+const DUENO='panorama-comercial.html';
 window.LCIMPORT=true; // los tableros con carga propia delegan en esta vía
 const puede=()=>typeof window.rebuildRaw==='function'&&typeof window.LCMargenAgregar==='function';
 const nf=n=>new Intl.NumberFormat('es-CO').format(Math.round(n||0));
@@ -44,7 +44,7 @@ function boton(){
  tools.insertBefore(b,tools.firstChild);
  /* Tableros que consumen existencias pero no las cargan: enlace al único cargador */
  if(document.querySelector('script[src="lcimport.js"][data-inventario]')){
-  const a=document.createElement('a');a.className='lcimp-btn gh';a.href='Surtidos Sedes.html?inventario=1';
+  const a=document.createElement('a');a.className='lcimp-btn gh';a.href='surtidos-sedes.html?inventario=1';
   a.textContent='Cargar inventario';a.title='El inventario viene en otro archivo: el export de existencias por almacén';
   tools.insertBefore(a,b.nextSibling);
  }

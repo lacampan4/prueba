@@ -345,7 +345,7 @@ function bind(){
  /* Con la carga unificada montada, esta página no parsea nada por su cuenta: un solo
     archivo tiene que alimentar el dataset comercial y el margen a la vez. */
  const UNIF=window.LCIMPORT===true;
- const open=UNIF?(()=>{location.href='Panorama Comercial.html?importar=1'}):(()=>{$('#impModal').style.display='flex'});
+ const open=UNIF?(()=>{location.href='panorama-comercial.html?importar=1'}):(()=>{$('#impModal').style.display='flex'});
  $('#btnImp').onclick=open;$('#impClose').onclick=()=>{$('#impModal').style.display='none'};
  const inp=$('#impFile'), drop=$('#impDrop');
  if(!UNIF){
@@ -376,6 +376,6 @@ window.LCBootMargen=async function(){
   '<p>Una fila por línea de factura, con <b>Kilos</b>, <b>Valor Total Articulo</b> y <b>Costo Kilo</b>. El archivo se procesa aquí mismo: no se sube a ningún servidor.</p>'+
   '<p class="sm">Es el mismo archivo del panorama comercial: se carga una sola vez y alimenta los dos.</p>'+
   '<button class="btn" id="emptyBtn">Cargar Excel</button></div>';
- const b=$('#emptyBtn');if(b)b.onclick=()=>{if(window.LCIMPORT===true)location.href='Panorama Comercial.html?importar=1';else $('#impModal').style.display='flex'};
+ const b=$('#emptyBtn');if(b)b.onclick=()=>{if(window.LCIMPORT===true)location.href='panorama-comercial.html?importar=1';else $('#impModal').style.display='flex'};
 };
 })();
