@@ -760,10 +760,16 @@ async function ejecutarDiagnosticoSAP() {
   const fin = new Date().toISOString().slice(0, 10);
   const inicio = fin.slice(0, 8) + '01';
   try {
-    const d = await consultarSAPPagina(inicio, fin, 0, 1);
+    const d = await consultarSAPPagina(inicio, fin, 0, 200);
     const total = d && d.d && d.d.__count !== undefined ? Number(d.d.__count) : null;
     console.log(`✓ DIAGNÓSTICO SAP OK (${inicio} → ${fin}). Registros del rango: ${total === null ? 'n/d' : total}`);
-    return { ok: true, inicio, fin, registros: total };
+    // Campos de crédito tal como llegan de SAP, para verificar nombre y formato del cupo.
+    const filas = (d && d.d && d.d.results) || [];
+    const campos = filas.length ? Object.keys(filas[0]).filter(k => k !== '__metadata') : [];
+    const camposCredito = campos.filter(k => /cupo|credit|plazo|limite/i.test(k));
+    const muestraCredito = filas.filter(f => camposCredito.some(k => f[k])).slice(0, 5)
+      .map(f => Object.fromEntries(['Cliente', ...camposCredito].map(k => [k, f[k]])));
+    return { ok: true, inicio, fin, registros: total, campos, camposCredito, muestraCredito };
   } catch (error) {
     console.error('✗ DIAGNÓSTICO SAP FALLÓ:', error.message);
     return { ok: false, inicio, fin, error: error.message };
